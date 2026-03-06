@@ -133,7 +133,7 @@ export const SocialService = {
                 filter: `(from_user = "${user.id}" || to_user = "${user.id}") && status = "accepted"`,
                 expand: 'from_user,to_user'
             });
-            return res.map(r => {
+            return res.map((r: any) => {
                 const friend = r.from_user === user.id ? r.expand?.to_user : r.expand?.from_user;
                 return { ...friend, requestId: r.id };
             }).filter(Boolean);

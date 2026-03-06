@@ -1,21 +1,52 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Default: Deny all (Safety first)
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
     }
-    
-    // Users collection rules
+
+    // Users Collection
     match /users/{userId} {
-      allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow read: if true; // Everyone can see profiles
+      allow write: if isOwner(userId); // Only user can edit their own profile
     }
     
-    // Rooms collection rules
+    // Posts Collection
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (resource.data.author == request.auth.uid);
+    }
+    
+    // Rooms Collection
     match /rooms/{roomId} {
       allow read: if true;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && (resource.data.ownerId == request.auth.uid || request.auth.token.admin == true);
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && (resource.data.ownerUid == request.auth.uid);
+    }
+
+    // Direct Messages
+    match /direct_messages/{msgId} {
+      allow read: if isSignedIn() && (resource.data.sender == request.auth.uid || resource.data.receiver == request.auth.uid);
+      allow create: if isSignedIn() && (request.resource.data.sender == request.auth.uid);
+      allow update: if isSignedIn() && (resource.data.receiver == request.auth.uid); // For marking as read
+    }
+
+    // Notifications
+    match /notifications/{notifId} {
+      allow read: if isSignedIn() && (resource.data.to_user == request.auth.uid);
+      allow write: if isSignedIn();
     }
   }
 }

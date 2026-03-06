@@ -51,15 +51,18 @@ export default function ChatPage() {
                 });
 
                 const recentUsers: any[] = [];
-                lastDMs.items.forEach(m => {
-                    const other = m.sender === user.id ? m.expand?.receiver : m.expand?.sender;
-                    if (other && !friends.find(f => f.id === other.id) && !recentUsers.find(r => r.id === other.id)) {
+                lastDMs.items.forEach((lastMsg: any) => {
+                    const otherId = lastMsg.sender === user.id ? lastMsg.receiver : lastMsg.sender;
+                    const otherUser = lastDMs.items.find((m: any) => (m.sender === otherId || m.receiver === otherId) && m.expand)?.expand;
+                    const other = otherUser?.sender?.id === otherId ? otherUser.sender : otherUser?.receiver;
+
+                    if (other && !friends.find((f: any) => f.id === other.id) && !recentUsers.find((r: any) => r.id === other.id)) {
                         recentUsers.push(other);
                     }
                 });
 
                 const all = [...friends, ...recentUsers];
-                const mapped: ChatContact[] = all.map(u => ({
+                const mapped: ChatContact[] = all.map((u: any) => ({
                     id: u.id,
                     username: u.username || u.name || 'Anonim',
                     color: u.color || 'var(--purple-main)',
@@ -75,7 +78,7 @@ export default function ChatPage() {
                 const params = new URLSearchParams(location.search);
                 const targetUid = params.get('userId');
                 if (targetUid && targetUid !== user.id) {
-                    const found = mapped.find(c => c.id === targetUid);
+                    const found = mapped.find((c: any) => c.id === targetUid);
                     if (found) {
                         setOpenChat(found);
                     } else {
@@ -113,7 +116,7 @@ export default function ChatPage() {
             }
         };
         const handleSeen = (data: any) => {
-            setMessages(prev => prev.map(m => data.messageIds.includes(m.id) ? { ...m, read: true } : m));
+            setMessages(prev => prev.map((m: any) => data.messageIds.includes(m.id) ? { ...m, read: true } : m));
         };
 
         socket.on('online_users_updated', handleOnline);
@@ -140,7 +143,7 @@ export default function ChatPage() {
                     sort: 'created',
                     filter: `(sender='${user.id}' && receiver='${openChat.id}') || (sender='${openChat.id}' && receiver='${user.id}')`
                 });
-                const mapped = res.items.map(m => ({
+                const mapped = res.items.map((m: any) => ({
                     id: m.id,
                     me: m.sender === user.id,
                     text: m.text,
@@ -150,23 +153,23 @@ export default function ChatPage() {
                 setMessages(mapped);
 
                 // Mark as seen
-                const unread = res.items.filter(m => m.receiver === user.id && !m.read);
+                const unread = res.items.filter((m: any) => m.receiver === user.id && !m.read);
                 if (unread.length > 0) {
                     for (const m of unread) {
                         pb.collection('direct_messages').update(m.id, { read: true }).catch(() => { });
                     }
-                    socket?.emit('dm_seen', { messageIds: unread.map(u => u.id), senderId: openChat.id, receiverId: user.id });
+                    socket?.emit('dm_seen', { messageIds: unread.map((u: any) => u.id), senderId: openChat.id, receiverId: user.id });
                 }
             } catch (e) { console.error(e); }
         };
         fetchMsgs();
 
-        const unsubscribe = pb.collection('direct_messages').subscribe('*', async (e) => {
+        const unsubscribe = pb.collection('direct_messages').subscribe('*', async (e: any) => {
             if (e.action === 'create') {
                 const m = e.record;
                 const isThisChat = (m.sender === user.id && m.receiver === openChat.id) || (m.sender === openChat.id && m.receiver === user.id);
                 if (isThisChat) {
-                    const isNew = !messages.find(existing => existing.id === m.id);
+                    const isNew = !messages.find((existing: any) => existing.id === m.id);
                     if (isNew) {
                         setMessages(prev => [...prev, {
                             id: m.id,
@@ -183,12 +186,12 @@ export default function ChatPage() {
                     }
                 }
             } else if (e.action === 'update') {
-                setMessages(prev => prev.map(m => m.id === e.record.id ? { ...m, read: e.record.read } : m));
+                setMessages(prev => prev.map((m: any) => m.id === e.record.id ? { ...m, read: e.record.read } : m));
             }
         });
 
         return () => {
-            unsubscribe.then(unsub => unsub());
+            unsubscribe.then((unsub: any) => unsub());
         };
     }, [user?.id, openChat?.id]);
 

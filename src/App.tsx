@@ -639,7 +639,7 @@ function AppInner() {
         };
         checkUpdate();
 
-        const unbind = pb.authStore.onChange((_, model) => setUser(model), true);
+        const unbind = pb.authStore.onChange((_: string, model: any) => setUser(model), true);
         return () => {
             unbind();
         };

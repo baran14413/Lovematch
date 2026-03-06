@@ -1,0 +1,25 @@
+
+> lovematch@0.0.0 build
+> tsc && vite build
+
+src/App.tsx(642,47): error TS7006: Parameter '_' implicitly has an 'any' type.
+src/App.tsx(642,50): error TS7006: Parameter 'model' implicitly has an 'any' type.
+src/firebase-adapter.ts(15,5): error TS6133: 'Timestamp' is declared but its value is never read.
+src/firebase-adapter.ts(16,8): error TS2307: Cannot find module 'firebase/firestore' or its corresponding type declarations.
+src/firebase-adapter.ts(26,8): error TS2307: Cannot find module 'firebase/auth' or its corresponding type declarations.
+src/firebase-adapter.ts(159,20): error TS6133: 'token' is declared but its value is never read.
+src/firebase.ts(1,31): error TS2307: Cannot find module 'firebase/app' or its corresponding type declarations.
+src/firebase.ts(2,30): error TS2307: Cannot find module 'firebase/firestore' or its corresponding type declarations.
+src/firebase.ts(3,25): error TS2307: Cannot find module 'firebase/auth' or its corresponding type declarations.
+src/firebase.ts(4,28): error TS2307: Cannot find module 'firebase/storage' or its corresponding type declarations.
+src/pages/ChatPage.tsx(54,39): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/pages/ChatPage.tsx(56,48): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/pages/ChatPage.tsx(143,46): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/pages/ChatPage.tsx(153,49): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/pages/ChatPage.tsx(158,70): error TS7006: Parameter 'u' implicitly has an 'any' type.
+src/pages/ChatPage.tsx(164,84): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/pages/ChatPage.tsx(191,30): error TS7006: Parameter 'unsub' implicitly has an 'any' type.
+src/pages/DiscoverPage.tsx(43,57): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/pages/ProfilePage.tsx(211,52): error TS7006: Parameter '_' implicitly has an 'any' type.
+src/pages/ProfilePage.tsx(211,55): error TS7006: Parameter 'model' implicitly has an 'any' type.
+src/utils/social.ts(136,28): error TS7006: Parameter 'r' implicitly has an 'any' type.

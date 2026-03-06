@@ -40,8 +40,8 @@ export default function DiscoverPage() {
             socket.emit('request_online_count');
         }
 
-        pb.collection('users').subscribe('*', function (e) {
-            if (e.action === 'create') setUsers(prev => [e.record, ...prev].slice(0, 50));
+        pb.collection('users').subscribe('*', function (e: any) {
+            if (e.action === 'create') setUsers((prev: any[]) => [e.record, ...prev].slice(0, 50));
         });
 
         return () => {

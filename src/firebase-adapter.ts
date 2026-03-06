@@ -12,7 +12,7 @@ import {
     limit,
     serverTimestamp,
     addDoc,
-    Timestamp
+    onSnapshot
 } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import {
@@ -99,7 +99,7 @@ class CollectionAdapter {
         // Handle FormData (common in PocketBase usage)
         if (data instanceof FormData) {
             payload = {};
-            data.forEach((value, key) => {
+            data.forEach((value: any, key: string) => {
                 payload[key] = value;
             });
         }
@@ -136,6 +136,36 @@ class CollectionAdapter {
         return { id, ...data };
     }
 
+    private unsubscribers: Map<string, () => void> = new Map();
+
+    async subscribe(topic: string, callback: (e: any) => void) {
+        // Topic '*' is used in PocketBase for all changes in collection
+        if (topic !== '*' && topic !== '') {
+            // Handle specific ID subscription if needed, but pro plan usually uses '*'
+        }
+
+        const unsub = onSnapshot(collection(db, this.name), (snapshot: any) => {
+            snapshot.docChanges().forEach((change: any) => {
+                const data = { id: change.doc.id, ...change.doc.data() };
+                callback({
+                    action: change.type === 'added' ? 'create' : (change.type === 'modified' ? 'update' : 'delete'),
+                    record: data
+                });
+            });
+        });
+
+        this.unsubscribers.set(topic, unsub);
+        return async () => unsub();
+    }
+
+    async unsubscribe(topic: string) {
+        const unsub = this.unsubscribers.get(topic);
+        if (unsub) {
+            unsub();
+            this.unsubscribers.delete(topic);
+        }
+    }
+
     async delete(id: string) {
         await deleteDoc(doc(db, this.name, id));
     }
@@ -147,17 +177,26 @@ class CollectionAdapter {
 
 class PBAdapter {
     authStore: any;
+    private callbacks: Array<(token: string, model: any) => void> = [];
 
     constructor() {
         this.authStore = {
             model: null,
-            token: "firebase-token",
             clear: () => {
                 signOut(auth);
                 this.authStore.model = null;
+                this.triggerChange();
             },
-            save: (token: string, model: any) => {
+            save: (_: string, model: any) => {
                 this.authStore.model = model;
+                this.triggerChange();
+            },
+            onChange: (callback: (token: string, model: any) => void, fireImmediately = false) => {
+                this.callbacks.push(callback);
+                if (fireImmediately) callback("firebase-token", this.authStore.model);
+                return () => {
+                    this.callbacks = this.callbacks.filter(c => c !== callback);
+                };
             }
         };
 
@@ -173,7 +212,12 @@ class PBAdapter {
             } else {
                 this.authStore.model = null;
             }
+            this.triggerChange();
         });
+    }
+
+    private triggerChange() {
+        this.callbacks.forEach(cb => cb("firebase-token", this.authStore.model));
     }
 
     collection(name: string) {

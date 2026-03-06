@@ -208,7 +208,7 @@ export default function ProfilePage() {
         const isMyProfile = !profileId || profileId === pb.authStore.model?.id;
         if (!isMyProfile) return;
 
-        const unsubscribe = pb.authStore.onChange((_, model) => {
+        const unsubscribe = pb.authStore.onChange((_: string, model: any) => {
             if (model) {
                 setUserData(model);
                 const pSafe = (v: any): string[] => Array.isArray(v) ? v.filter(Boolean) : (typeof v === 'string' && v.trim() ? v.split(',').filter(Boolean) : []);
