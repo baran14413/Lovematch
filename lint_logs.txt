@@ -1,0 +1,237 @@
+
+> lovematch@0.0.0 lint
+> eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0
+
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\App.tsx
+    2:1   error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free             @typescript-eslint/ban-ts-comment
+  204:13  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free             @typescript-eslint/ban-ts-comment
+  206:13  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free             @typescript-eslint/ban-ts-comment
+  218:19  error  React Hook "useLanguage" is called conditionally. React Hooks must be called in the exact same order in every component render  react-hooks/rules-of-hooks
+  219:22  error  React Hook "useLocation" is called conditionally. React Hooks must be called in the exact same order in every component render  react-hooks/rules-of-hooks
+  386:90  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  410:29  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  582:38  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  602:44  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  633:17  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free             @typescript-eslint/ban-ts-comment
+  638:21  error  Empty block statement                                                                                                           no-empty
+  642:65  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  652:50  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  658:45  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  668:53  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  672:39  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\components\PartyGames.tsx
+  17:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  18:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  22:50  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  29:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\components\games\Chess2D.tsx
+   99:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  101:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\components\games\Tavla2D.tsx
+  23:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  25:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\firebase-adapter.ts
+   55:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   74:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   85:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   96:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  102:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  130:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  141:50  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  147:72  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  148:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  179:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  180:53  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  190:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  194:57  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  228:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  238:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\hooks\usePartyRoom.ts
+   45:5    error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+   56:48   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+   57:38   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  170:51   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  228:79   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  285:35   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  292:43   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  300:29   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  302:37   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  302:65   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  304:37   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  311:36   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  316:39   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  323:38   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  325:37   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  330:33   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  372:8    warning  React Hook useEffect has a missing dependency: 'roomId'. Either include it or remove the dependency array            react-hooks/exhaustive-deps
+  399:52   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  420:23   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  441:21   error    'combinedStream' is never reassigned. Use 'const' instead                                                            prefer-const
+  455:52   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  476:23   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  487:53   error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  561:116  error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\pages\AdminPage.tsx
+   23:44   error    Unexpected any. Specify a different type                                                                                                              @typescript-eslint/no-explicit-any
+   39:13   error    'start' is never reassigned. Use 'const' instead                                                                                                      prefer-const
+   50:8    warning  React Hook useEffect has a missing dependency: 'display'. Either include it or remove the dependency array                                            react-hooks/exhaustive-deps
+  171:40   error    Unexpected any. Specify a different type                                                                                                              @typescript-eslint/no-explicit-any
+  172:48   error    Unexpected any. Specify a different type                                                                                                              @typescript-eslint/no-explicit-any
+  173:52   error    Unexpected any. Specify a different type                                                                                                              @typescript-eslint/no-explicit-any
+  174:44   error    Unexpected any. Specify a different type                                                                                                              @typescript-eslint/no-explicit-any
+  194:32   error    Unexpected any. Specify a different type                                                                                                              @typescript-eslint/no-explicit-any
+  208:105  error    Empty block statement                                                                                                                                 no-empty
+  212:148  error    Empty block statement                                                                                                                                 no-empty
+  236:124  warning  React Hook useEffect has missing dependencies: 'checkPb', 'fetchOnlineUsers', and 'fetchPbUsers'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\pages\AuthPage.tsx
+   97:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  117:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  175:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\pages\ChatPage.tsx
+   25:46   error    Unexpected any. Specify a different type                                                                                              @typescript-eslint/no-explicit-any
+   33:31   error    Unexpected any. Specify a different type                                                                                              @typescript-eslint/no-explicit-any
+   53:36   error    Unexpected any. Specify a different type                                                                                              @typescript-eslint/no-explicit-any
+   54:49   error    Unexpected any. Specify a different type                                                                                              @typescript-eslint/no-explicit-any
+   56:62   error    Unexpected any. Specify a different type                                                                                              @typescript-eslint/no-explicit-any
+   59:52   error    Unexpected any. Specify a different type                                                                                              @typescript-eslint/no-explicit-any
+   59:104  error    Unexpected any. Specify a different type                                                                                              @typescript-eslint/no-explicit-any
+   65:59   error    Unexpected any. Specify a different type                                                                                              @typescript-eslint/no-explicit-any
+   81:51   error    Unexpected any. Specify a different type                                                                                              @typescript-eslint/no-explicit-any
+  106:8    warning  React Hook useEffect has missing dependencies: 'location.search' and 'onlineIds'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  112:37   error    Unexpected any. Specify a different type                                                                                              @typescript-eslint/no-explicit-any
+  113:53   error    Unexpected any. Specify a different type                                                                                              @typescript-eslint/no-explicit-any
+  118:35   error    Unexpected any. Specify a different type                                                                                              @typescript-eslint/no-explicit-any
+  119:46   error    Unexpected any. Specify a different type                                                                                              @typescript-eslint/no-explicit-any
+  146:50   error    Unexpected any. Specify a different type                                                                                              @typescript-eslint/no-explicit-any
+  156:53   error    Unexpected any. Specify a different type                                                                                              @typescript-eslint/no-explicit-any
+  161:74   error    Unexpected any. Specify a different type                                                                                              @typescript-eslint/no-explicit-any
+  167:87   error    Unexpected any. Specify a different type                                                                                              @typescript-eslint/no-explicit-any
+  172:61   error    Unexpected any. Specify a different type                                                                                              @typescript-eslint/no-explicit-any
+  189:50   error    Unexpected any. Specify a different type                                                                                              @typescript-eslint/no-explicit-any
+  194:38   error    Unexpected any. Specify a different type                                                                                              @typescript-eslint/no-explicit-any
+  196:8    warning  React Hook useEffect has missing dependencies: 'messages' and 'socket'. Either include them or remove the dependency array            react-hooks/exhaustive-deps
+  234:29   error    Unexpected any. Specify a different type                                                                                              @typescript-eslint/no-explicit-any
+  249:64   error    Unexpected any. Specify a different type                                                                                              @typescript-eslint/no-explicit-any
+  348:29   error    'theirShadow' is never reassigned. Use 'const' instead                                                                                prefer-const
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\pages\DiscoverPage.tsx
+  14:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  34:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  36:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  43:60  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  44:56  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\pages\HelpPage.tsx
+  150:72  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\pages\HomePage.tsx
+   51:40  error    Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+   52:40  error    Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+  106:38  error    Unexpected any. Specify a different type                                                                               @typescript-eslint/no-explicit-any
+  136:8   warning  React Hook useCallback has a missing dependency: 'handleLikePost'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+  173:8   warning  React Hook useCallback has an unnecessary dependency: 'searchQuery'. Either exclude it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\pages\OneVsOneMatchPage.tsx
+   15:52  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                      @typescript-eslint/no-explicit-any
+   16:35  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                      @typescript-eslint/no-explicit-any
+   20:38  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                      @typescript-eslint/no-explicit-any
+   67:43  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                      @typescript-eslint/no-explicit-any
+  140:8   warning  React Hook useEffect has missing dependencies: 'cleanupAndClose', 'navigate', 'onClose', 'showEndOptions', and 'user'. Either include them or remove the dependency array. If 'onClose' changes too often, find the parent component that defines it and wrap that definition in useCallback  react-hooks/exhaustive-deps
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\pages\PartyRoomPage.tsx
+    22:22   error    Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+    87:120  error    Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+   216:40   error    Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+   225:66   error    Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+   236:42   error    Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+   250:69   error    Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+   264:51   error    Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+   273:8    warning  React Hook useEffect has a missing dependency: 'rooms'. Either include it or remove the dependency array            react-hooks/exhaustive-deps
+   698:49   error    Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+   710:54   error    Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+   711:83   error    Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+   715:48   error    Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+   716:48   error    Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+   801:8    warning  React Hook useEffect has a missing dependency: 'fetchFollowers'. Either include it or remove the dependency array   react-hooks/exhaustive-deps
+   813:46   error    Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+   828:33   error    Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+   841:36   error    Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+   846:28   error    Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+   890:8    warning  React Hook useEffect has a missing dependency: 'isInitialScroll'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+   953:47   error    Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+  1194:56   error    Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+  1486:43   error    Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+  1578:31   error    Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+  1666:57   error    Unexpected any. Specify a different type                                                                            @typescript-eslint/no-explicit-any
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\pages\ProfilePage.tsx
+    39:46   error    Unexpected any. Specify a different type                                                                     @typescript-eslint/no-explicit-any
+    40:40   error    Unexpected any. Specify a different type                                                                     @typescript-eslint/no-explicit-any
+    41:48   error    Unexpected any. Specify a different type                                                                     @typescript-eslint/no-explicit-any
+    42:48   error    Unexpected any. Specify a different type                                                                     @typescript-eslint/no-explicit-any
+    50:107  error    Unexpected any. Specify a different type                                                                     @typescript-eslint/no-explicit-any
+    52:52   error    Unexpected any. Specify a different type                                                                     @typescript-eslint/no-explicit-any
+    67:12   error    '_themeApplied' is assigned a value but never used                                                           @typescript-eslint/no-unused-vars
+    73:58   error    Unexpected any. Specify a different type                                                                     @typescript-eslint/no-explicit-any
+    74:58   error    Unexpected any. Specify a different type                                                                     @typescript-eslint/no-explicit-any
+   127:37   error    Unexpected any. Specify a different type                                                                     @typescript-eslint/no-explicit-any
+   132:83   error    Empty block statement                                                                                        no-empty
+   164:38   warning  React Hook useEffect has a missing dependency: 'fetchAll'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+   211:70   error    Unexpected any. Specify a different type                                                                     @typescript-eslint/no-explicit-any
+   214:35   error    Unexpected any. Specify a different type                                                                     @typescript-eslint/no-explicit-any
+   244:21   error    Unexpected any. Specify a different type                                                                     @typescript-eslint/no-explicit-any
+   457:49   error    Unexpected any. Specify a different type                                                                     @typescript-eslint/no-explicit-any
+  1187:137  error    Unexpected any. Specify a different type                                                                     @typescript-eslint/no-explicit-any
+  1190:71   error    Unexpected any. Specify a different type                                                                     @typescript-eslint/no-explicit-any
+  1190:132  error    Unexpected any. Specify a different type                                                                     @typescript-eslint/no-explicit-any
+  1518:69   error    Unexpected any. Specify a different type                                                                     @typescript-eslint/no-explicit-any
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\utils\languages.ts
+  1:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\utils\notifications.ts
+   16:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   54:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  175:50  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  184:21  error  Empty block statement                     no-empty
+  190:21  error  Empty block statement                     no-empty
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\utils\social.ts
+   18:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   33:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   71:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  136:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  178:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  184:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  309:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  312:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  336:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  339:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\utils\store.ts
+    5:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+    8:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   53:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   57:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   60:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   64:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   67:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   71:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   87:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   98:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  121:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  148:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  151:58  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 191 problems (179 errors, 12 warnings)
+  3 errors and 0 warnings potentially fixable with the `--fix` option.
+

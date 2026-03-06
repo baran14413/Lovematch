@@ -438,7 +438,7 @@ export function usePartyRoom(roomId: string) {
                     }
                 });
 
-                let combinedStream = new MediaStream(videoStream.getVideoTracks());
+                const combinedStream = new MediaStream(videoStream.getVideoTracks());
 
                 // Eğer ses de açıksa değiştirme
                 if (localStream.current && isMicOn) {

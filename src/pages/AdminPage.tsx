@@ -36,7 +36,7 @@ const fmtDate = (ts: number) => new Date(ts).toLocaleString('tr-TR', { day: '2-d
 function AnimCounter({ value, color }: { value: number; color: string }) {
     const [display, setDisplay] = useState(0);
     useEffect(() => {
-        let start = display;
+        const start = display;
         const diff = value - start;
         if (diff === 0) return;
         const steps = 20;

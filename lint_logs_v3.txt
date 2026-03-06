@@ -1,0 +1,34 @@
+
+> lovematch@0.0.0 lint
+> eslint src --ext ts,tsx --report-unused-disable-directives
+
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\hooks\usePartyRoom.ts
+  372:8  warning  React Hook useEffect has a missing dependency: 'roomId'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\pages\AdminPage.tsx
+   50:8    warning  React Hook useEffect has a missing dependency: 'display'. Either include it or remove the dependency array                                            react-hooks/exhaustive-deps
+  236:124  warning  React Hook useEffect has missing dependencies: 'checkPb', 'fetchOnlineUsers', and 'fetchPbUsers'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\pages\ChatPage.tsx
+  106:8  warning  React Hook useEffect has missing dependencies: 'location.search' and 'onlineIds'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  196:8  warning  React Hook useEffect has missing dependencies: 'messages' and 'socket'. Either include them or remove the dependency array            react-hooks/exhaustive-deps
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\pages\HomePage.tsx
+  136:8  warning  React Hook useCallback has a missing dependency: 'handleLikePost'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+  173:8  warning  React Hook useCallback has an unnecessary dependency: 'searchQuery'. Either exclude it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\pages\OneVsOneMatchPage.tsx
+  140:8  warning  React Hook useEffect has missing dependencies: 'cleanupAndClose', 'navigate', 'onClose', 'showEndOptions', and 'user'. Either include them or remove the dependency array. If 'onClose' changes too often, find the parent component that defines it and wrap that definition in useCallback  react-hooks/exhaustive-deps
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\pages\PartyRoomPage.tsx
+  273:8  warning  React Hook useEffect has a missing dependency: 'rooms'. Either include it or remove the dependency array            react-hooks/exhaustive-deps
+  801:8  warning  React Hook useEffect has a missing dependency: 'fetchFollowers'. Either include it or remove the dependency array   react-hooks/exhaustive-deps
+  890:8  warning  React Hook useEffect has a missing dependency: 'isInitialScroll'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\Administrator\Desktop\Litmatch_Ubuntu_Migration\litmatch-clone\src\pages\ProfilePage.tsx
+   67:12  warning  '_themeApplied' is assigned a value but never used                                                           @typescript-eslint/no-unused-vars
+  164:38  warning  React Hook useEffect has a missing dependency: 'fetchAll'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+✖ 13 problems (0 errors, 13 warnings)
+

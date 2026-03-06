@@ -345,7 +345,7 @@ export default function ChatPage() {
                         const theirRadius = '22px 22px 22px 6px';
                         let theirBg = 'rgba(255,255,255,0.07)';
                         let theirBorder = '1px solid rgba(255,255,255,0.1)';
-                        let theirShadow = '0 8px 20px rgba(0,0,0,0.25)';
+                        const theirShadow = '0 8px 20px rgba(0,0,0,0.25)';
                         let theirExtra: React.CSSProperties = {};
 
                         if (style === 'neon') {
