@@ -1,0 +1,61 @@
+[
+  {
+    "id": "room_8rg33y3v74",
+    "name": "Twst",
+    "ownerUid": "kc3tdii7c8c6qde",
+    "ownerName": "demir",
+    "ownerAvatar": "https://lovemtch.shop/api/files/_pb_users_auth_/kc3tdii7c8c6qde/1000102493_hcUd81cRWI.jpg",
+    "maxSeatCount": 8,
+    "admins": [
+      "kc3tdii7c8c6qde",
+      "ar4lr4yqgezq2d1"
+    ],
+    "mutedUsers": [],
+    "blockedUsers": [],
+    "layout": "grid",
+    "createdAt": 1772342406992,
+    "isSleeping": true,
+    "followers": [
+      [
+        "iqs9b0t4462ls0f",
+        {
+          "uid": "iqs9b0t4462ls0f",
+          "username": "sjsjsjjrj",
+          "avatar": "https://lovemtch.shop/api/files/_pb_users_auth_/iqs9b0t4462ls0f/screenshot_2026_02_23_13_59_06_904_com_android_Hzk2mDcyb1.chrome.jpg",
+          "followedAt": 1772342966014
+        }
+      ],
+      [
+        "ar4lr4yqgezq2d1",
+        {
+          "uid": "ar4lr4yqgezq2d1",
+          "username": "baranguler",
+          "avatar": "https://lovemtch.shop/api/files/_pb_users_auth_/ar4lr4yqgezq2d1/1000068089_1WTJW4JtCF.png",
+          "followedAt": 1772380198061
+        }
+      ],
+      [
+        "kc3tdii7c8c6qde",
+        {
+          "uid": "kc3tdii7c8c6qde",
+          "username": "demir",
+          "avatar": "https://lovemtch.shop/api/files/_pb_users_auth_/kc3tdii7c8c6qde/1000102493_hcUd81cRWI.jpg",
+          "followedAt": 1772448573336
+        }
+      ]
+    ],
+    "lockedSeats": [
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true
+    ],
+    "announcement": "",
+    "slowMode": true,
+    "chatDisabled": false
+  }
+]

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "555856494313",
+    "project_id": "lovematch-67f1d",
+    "storage_bucket": "lovematch-67f1d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:555856494313:android:5f46806701368ecf243a78",
+        "android_client_info": {
+          "package_name": "com.lovmatch.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBn7oZw5y-HtFdsJmD9Zju-1ClDcXu9l2c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

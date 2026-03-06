@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LoveMatch — Yönetim Paneli</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        :root {
+            --bg: #0a0a1a;
+            --bg2: #111128;
+            --card: rgba(20, 20, 50, .7);
+            --border: rgba(100, 100, 255, .12);
+            --text: #f0f0ff;
+            --muted: #8888bb;
+            --purple: #8b5cf6;
+            --pink: #ec4899;
+            --blue: #3b82f6;
+            --green: #10b981;
+            --yellow: #f59e0b;
+            --red: #ef4444;
+            --cyan: #06b6d4;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            /* Scroll sorunlarını önlemek için body scroll'u daha stabil hale getirildi */
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            background: rgba(17, 17, 40, 0.95);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 1000;
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .sidebar-brand {
+            padding: 20px 16px 8px;
+            font-size: 18px;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 8px
+        }
+
+        .nav-section {
+            padding: 8px 12px 4px;
+            font-size: 10px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            margin: 2px 8px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--muted);
+            transition: .2s;
+            border: none;
+            background: none;
+            width: calc(100% - 16px);
+            text-align: left
+        }
+
+        .nav-item:hover,
+        .nav-item.active {
+            background: rgba(139, 92, 246, .12);
+            color: var(--purple)
+        }
+
+        .nav-icon {
+            width: 20px;
+            text-align: center;
+            font-size: 16px
+        }
+
+        /* TOPBAR */
+        .topbar {
+            background: rgba(10, 10, 30, 0.8);
+            backdrop-filter: blur(15px);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            margin: -24px -24px 24px -24px;
+            /* Main padding dengelenmesi */
+        }
+
+        .topbar-title {
+            font-size: 16px;
+            font-weight: 800
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700
+        }
+
+        .badge-online {
+            background: rgba(16, 185, 129, .15);
+            color: var(--green);
+            border: 1px solid rgba(16, 185, 129, .3)
+        }
+
+        .badge-maint {
+            background: rgba(245, 158, 11, .15);
+            color: var(--yellow);
+            border: 1px solid rgba(245, 158, 11, .3)
+        }
+
+        /* MAIN */
+        .main {
+            padding: 24px;
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        /* Sayfa geçiş animasyonu */
+        .page {
+            display: none;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .page.active {
+            display: block
+        }
+
+        /* CARDS */
+        .card {
+            background: var(--card);
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            padding: 20px;
+            margin-bottom: 16px
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px
+        }
+
+        .stat-card {
+            background: var(--card);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            padding: 16px;
+            text-align: center
+        }
+
+        .stat-val {
+            font-size: 28px;
+            font-weight: 900;
+            margin-bottom: 4px
+        }
+
+        .stat-lbl {
+            font-size: 11px;
+            color: var(--muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .8px
+        }
+
+        /* BUTTONS */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: .2s;
+            font-family: inherit
+        }
+
+        .btn-primary {
+            background: var(--purple);
+            color: #fff
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, .1);
+            color: var(--red);
+            border: 1px solid rgba(239, 68, 68, .2)
+        }
+
+        .btn-warning {
+            background: rgba(245, 158, 11, .1);
+            color: var(--yellow);
+            border: 1px solid rgba(245, 158, 11, .2)
+        }
+
+        .btn-success {
+            background: rgba(16, 185, 129, .1);
+            color: var(--green);
+            border: 1px solid rgba(16, 185, 129, .2)
+        }
+
+        .btn-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 12px
+        }
+
+        /* FORM */
+        .field {
+            margin-bottom: 12px
+        }
+
+        .field label {
+            display: block;
+            font-size: 11px;
+            color: var(--muted);
+            font-weight: 700;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: .7px
+        }
+
+        .field input,
+        .field select,
+        .field textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid var(--border);
+            color: #fff;
+            font-size: 13px;
+            font-family: inherit;
+            outline: none
+        }
+
+        .field textarea {
+            resize: vertical;
+            min-height: 80px
+        }
+
+        /* LOG */
+        .log-box {
+            background: rgba(0, 0, 0, .4);
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            height: 280px;
+            overflow-y: auto;
+            padding: 12px;
+            font-family: monospace;
+            font-size: 12px
+        }
+
+        .user-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .user-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #333;
+        }
+
+        .user-name {
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .user-id {
+            font-size: 10px;
+            color: var(--muted);
+        }
+
+        .log-line {
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, .04)
+        }
+
+        .log-line.error {
+            color: var(--red)
+        }
+
+        .log-line.success {
+            color: var(--green)
+        }
+
+        .log-line.warn {
+            color: var(--yellow)
+        }
+
+        .log-line.system {
+            color: var(--cyan)
+        }
+
+        .log-line.info {
+            color: var(--muted)
+        }
+
+        /* ROOM */
+        .room-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            background: rgba(255, 255, 255, .03);
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            margin-bottom: 8px
+        }
+
+        .room-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: rgba(139, 92, 246, .15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0
+        }
+
+        .room-info {
+            flex: 1
+        }
+
+        .room-name {
+            font-weight: 700;
+            font-size: 13px
+        }
+
+        .room-meta {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 2px
+        }
+
+        /* TOGGLE */
+        .toggle {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0
+        }
+
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: #333;
+            border-radius: 24px;
+            transition: .3s;
+            cursor: pointer
+        }
+
+        .toggle-slider::before {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: #fff;
+            border-radius: 50%;
+            bottom: 3px;
+            left: 3px;
+            transition: .3s
+        }
+
+        .toggle input:checked+.toggle-slider {
+            background: var(--purple)
+        }
+
+        .toggle input:checked+.toggle-slider::before {
+            transform: translateX(20px)
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, .04)
+        }
+
+        .toggle-row:last-child {
+            border-bottom: none
+        }
+
+        /* COLOR PICKER */
+        .color-picker {
+            width: 40px;
+            height: 36px;
+            padding: 2px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: transparent;
+            cursor: pointer
+        }
+
+        .color-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, .04)
+        }
+
+        /* TOAST */
+        #toast-box {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px
+        }
+
+        .toast {
+            background: rgba(20, 20, 50, .95);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            backdrop-filter: blur(20px);
+            animation: slideIn .3s ease
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(50px);
+                opacity: 0
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1
+            }
+        }
+
+        /* SIDEBAR OVERLAY */
+        .sidebar-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 999;
+            opacity: 0;
+            pointer-events: none;
+            transition: 0.3s;
+        }
+
+        .sidebar-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        @media(max-width:992px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: fixed;
+                left: 0;
+                transform: translateX(-100%);
+                top: 0;
+                bottom: 0;
+                width: 280px;
+                box-shadow: 20px 0 50px rgba(0, 0, 0, 0.5);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .mobile-menu-btn {
+                display: block;
+                background: rgba(139, 92, 246, 0.1);
+                color: var(--purple);
+                width: 40px;
+                height: 40px;
+                border-radius: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border: 1px solid rgba(139, 92, 246, 0.2);
+            }
+
+            .main {
+                padding: 16px;
+            }
+
+            .topbar {
+                margin: -16px -16px 16px -16px;
+                padding: 12px 16px;
+            }
+
+            .stat-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .card {
+                padding: 16px;
+            }
+
+            .topbar-title {
+                font-size: 14px;
+            }
+
+            .badge {
+                padding: 2px 8px;
+                font-size: 10px;
+            }
+        }
+
+        @media(max-width: 480px) {
+            .stat-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-row {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        /* PROGRESS BAR */
+        .progress {
+            height: 8px;
+            background: rgba(255, 255, 255, .08);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-top: 6px
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--purple), var(--pink));
+            transition: .5s
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <div class="layout">
+        <!-- SIDEBAR -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-brand">
+                <span style="color:var(--purple)">🔥</span> LoveMatch
+                <span
+                    style="font-size:11px;color:var(--muted);font-weight:500;background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;margin-left:4px">Admin</span>
+            </div>
+            <div class="nav-section">Ana</div>
+            <button class="nav-item active" onclick="showPage('dashboard',this)"><span
+                    class="nav-icon">📊</span>Dashboard</button>
+            <button class="nav-item" onclick="showPage('users',this)"><span
+                    class="nav-icon">👥</span>Kullanıcılar</button>
+            <button class="nav-item" onclick="showPage('rooms',this)"><span class="nav-icon">🏠</span>Odalar</button>
+            <button class="nav-item" onclick="showPage('security',this)"><span
+                    class="nav-icon">🛡️</span>Güvenlik</button>
+            <button class="nav-item" onclick="showPage('logs',this)"><span class="nav-icon">📋</span>Loglar</button>
+            <button class="nav-item" onclick="showPage('monitoring',this)"><span class="nav-icon">📈</span>İzleme
+                (Prometheus)</button>
+            <div class="nav-section">Yönetim</div>
+            <button class="nav-item" onclick="showPage('actions',this)"><span class="nav-icon">⚡</span>Eylemler</button>
+            <button class="nav-item" onclick="showPage('settings',this)"><span class="nav-icon">🎨</span>Site
+                Ayarları</button>
+            <div style="flex:1"></div>
+            <div style="padding:16px;border-top:1px solid var(--border)">
+                <div style="font-size:11px;color:var(--muted)">v2.0 · Watchdog Aktif</div>
+            </div>
+        </div>
+
+        <!-- MAIN -->
+        <div class="main">
+            <!-- TOPBAR -->
+            <div class="topbar">
+                <div style="display:flex;align-items:center;gap:12px">
+                    <button class="mobile-menu-btn" onclick="toggleSidebar()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <div class="topbar-title" id="page-title">Dashboard</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px">
+                    <span class="badge badge-online" id="status-badge">🟢 Sistem Aktif</span>
+                    <button class="btn btn-primary" onclick="refreshAll()" style="padding:8px 14px;font-size:12px">⟳
+                        Yenile</button>
+                </div>
+            </div>
+
+            <script>
+                async function testFriendRequest() {
+                    if (!confirm('Tüm kullanıcılara test arkadaşlık bildirimi göndermek istediğinize emin misiniz?')) return;
+                    try {
+                        const res = await fetch('/admin/test-friend-request', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ fromName: 'Admin Test' })
+                        });
+                        const data = await res.json();
+                        if (data.success) toast('Bildirim gönderildi!', 'success');
+                    } catch (e) {
+                        toast('Hata oluştu', 'danger');
+                    }
+                }
+            </script>
+
+            <!-- TOAST -->
+            <div id="toast-box"></div>
+
+            <!-- MAINTENANCE BANNER -->
+            <div id="maint-banner"
+                style="display:none;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);border-radius:14px;padding:12px 20px;margin:12px 0;color:var(--yellow);font-weight:700">
+                ⚠️ Bakım Modu AKTİF — <span id="maint-msg">Sistem bakımda</span>
+            </div>
+
+            <!-- ── DASHBOARD PAGE ── -->
+            <div class="page active" id="page-dashboard">
+                <div class="card">
+                    <div class="card-title">🌐 3D Sistem Önizleme</div>
+                    <div id="3d-preview-container"
+                        style="width: 100%; height: 300px; border-radius: 12px; overflow: hidden; background: #000; position: relative;">
+                        <div id="3d-loading"
+                            style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #666; font-size: 12px;">
+                            3D Yükleniyor...</div>
+                    </div>
+                </div>
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <div class="stat-val" id="stat-online" style="color:var(--green)">-</div>
+                        <div class="stat-lbl">Çevrimiçi</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-val" id="stat-rooms" style="color:var(--purple)">-</div>
+                        <div class="stat-lbl">Toplam Oda</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-val" id="stat-seated" style="color:var(--blue)">-</div>
+                        <div class="stat-lbl">Koltuktaki</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-val" id="stat-uptime" style="color:var(--cyan)">-</div>
+                        <div class="stat-lbl">Uptime</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-val" id="stat-mem" style="color:var(--pink)">-</div>
+                        <div class="stat-lbl">Bellek (MB)</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">📶 Kapasite Durumu</div>
+                    <div style="margin-bottom:16px">
+                        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+                            <span>Kullanıcı Kapasitesi</span><span id="cap-users">0/100000</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-fill" id="bar-users" style="width:0%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+                            <span>Ses Kapasitesi</span><span id="cap-voice">0/25000</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-fill" id="bar-voice"
+                                style="width:0%;background:linear-gradient(135deg,var(--blue),var(--cyan))"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">🔄 Hızlı Eylemler</div>
+                    <div class="btn-row">
+                        <button class="btn btn-warning" onclick="restartService('backend')">🔄 Backend Restart</button>
+                        <button class="btn btn-warning" onclick="restartService('pocketbase')">🔄 PocketBase
+                            Restart</button>
+                        <button class="btn btn-warning" onclick="restartService('frontend')">🔄 Frontend
+                            Restart</button>
+                        <button class="btn btn-success" onclick="testFriendRequest()">🔔 Arkadaşlık Bildirimi
+                            Testi</button>
+                        <button class="btn btn-danger" onclick="clearRooms()">🗑️ Odaları Temizle</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── USERS PAGE ── -->
+            <div class="page" id="page-users">
+                <div class="card">
+                    <div class="card-title">
+                        <span>👥 Kullanıcı Yönetimi</span>
+                        <div style="margin-left:auto;display:flex;gap:10px">
+                            <input type="text" id="user-search" placeholder="Kullanıcı Ara..."
+                                style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.05);color:#fff;outline:none;font-size:12px">
+                            <button class="btn btn-primary" onclick="loadUsers()"
+                                style="padding:6px 12px;font-size:12px">Yenile</button>
+                        </div>
+                    </div>
+                    <div class="user-list" id="user-list-container">
+                        <!-- Users will be populated here -->
+                        <div style="text-align:center;padding:20px;color:var(--muted)">Yükleniyor...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── ROOMS PAGE ── -->
+            <div class="page" id="page-rooms">
+                <div class="card">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                        <div class="card-title" style="margin:0">🏠 Aktif Odalar</div>
+                        <button class="btn btn-primary" onclick="fetchRooms();toast('🔄','Yenilendi')"
+                            style="padding:8px 14px;font-size:12px">Yenile</button>
+                    </div>
+                    <div id="room-list">
+                        <div style="text-align:center;color:var(--muted);padding:40px">Yükleniyor...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── SECURITY PAGE ── -->
+            <div class="page" id="page-security">
+                <div class="card">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                        <div class="card-title" style="margin:0">🛡️ Trafik & IP İzleme</div>
+                        <button class="btn btn-primary" onclick="fetchStats();toast('🔄','IP Listesi Güncellendi')"
+                            style="padding:8px 14px;font-size:12px">Yenile</button>
+                    </div>
+                    <div style="overflow-x:auto">
+                        <table style="width:100%;border-collapse:collapse;font-size:13px">
+                            <thead>
+                                <tr style="text-align:left;border-bottom:1px solid var(--border)">
+                                    <th style="padding:12px 8px;color:var(--muted)">IP Adresi</th>
+                                    <th style="padding:12px 8px;color:var(--muted)">İstek Sayısı</th>
+                                    <th style="padding:12px 8px;color:var(--muted)">Son Görülme</th>
+                                    <th style="padding:12px 8px;color:var(--muted);text-align:right">Eylem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ip-list">
+                                <tr>
+                                    <td colspan="4" style="text-align:center;padding:20px;color:var(--muted)">Veri
+                                        bekleniyor...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── LOGS PAGE ── -->
+            <div class="page" id="page-logs">
+                <div class="card">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                        <div class="card-title" style="margin:0">📋 Sistem Logları</div>
+                        <button class="btn btn-danger" onclick="clearLogs()"
+                            style="padding:6px 12px;font-size:12px">Temizle</button>
+                    </div>
+                    <div class="log-box" id="log-box"></div>
+                </div>
+            </div>
+
+            <!-- ── MONITORING PAGE ── -->
+            <div class="page" id="page-monitoring">
+                <div class="card">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                        <div class="card-title" style="margin:0">📈 Prometheus Metrikleri (Canlı)</div>
+                        <div style="display:flex;gap:8px">
+                            <a href="/status" target="_blank" class="btn btn-success"
+                                style="padding:8px 14px;font-size:12px">🟢 Netdata Canlı UI ↗</a>
+                            <a href="/admin/metrics" target="_blank" class="btn btn-primary"
+                                style="padding:8px 14px;font-size:12px">Raw Data ↗</a>
+                            <button class="btn btn-primary" onclick="fetchPrometheusMetrics()"
+                                style="padding:8px 14px;font-size:12px">Yenile</button>
+                        </div>
+                    </div>
+                    <div id="monitoring-data"
+                        style="display:grid;grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:16px;">
+                        <div class="card" style="background:rgba(0,0,0,0.2)">
+                            <div class="card-title" style="font-size:12px;color:var(--cyan)">HTTP İstek Süreleri (Ort.)
+                            </div>
+                            <div id="metric-http-duration" style="font-size:24px;font-weight:900;color:#fff">-</div>
+                        </div>
+                        <div class="card" style="background:rgba(0,0,0,0.2)">
+                            <div class="card-title" style="font-size:12px;color:var(--purple)">Aktif Socket Bağlantıları
+                            </div>
+                            <div id="metric-socket-conn" style="font-size:24px;font-weight:900;color:#fff">-</div>
+                        </div>
+                        <div class="card" style="background:rgba(0,0,0,0.2)">
+                            <div class="card-title" style="font-size:12px;color:var(--green)">Node.js Event Loop
+                                Gecikmesi</div>
+                            <div id="metric-event-loop" style="font-size:24px;font-weight:900;color:#fff">-</div>
+                        </div>
+                    </div>
+                    <div class="card" style="margin-top:20px;background:rgba(0,0,0,0.3)">
+                        <div class="card-title" style="font-size:12px">Tüm Metrikler</div>
+                        <pre id="metrics-raw"
+                            style="font-size:11px;max-height:400px;overflow:auto;background:rgba(0,0,0,0.5);padding:10px;border-radius:8px;color:var(--muted)"></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── ACTIONS PAGE ── -->
+            <div class="page" id="page-actions">
+                <div class="card">
+                    <div class="card-title">⚠️ Bakım Modu</div>
+                    <div class="field">
+                        <label>Bakım Mesajı</label>
+                        <input type="text" id="maint-input"
+                            value="Sistem bakım modundadır. Lütfen daha sonra tekrar deneyin.">
+                    </div>
+                    <div class="toggle-row">
+                        <span>Bakım Modunu Aktif Et</span>
+                        <label class="toggle"><input type="checkbox" id="maint-toggle"
+                                onchange="toggleMaintenance()"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div style="margin-top:8px;font-size:12px;color:var(--muted)" id="maint-status">✅ Bakım modu kapalı
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">📢 Duyuru Gönder</div>
+                    <div class="field">
+                        <label>Mesaj</label>
+                        <textarea id="broadcast-input"
+                            placeholder="Tüm kullanıcılara gönderilecek duyuru..."></textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="sendBroadcast()">📢 Gönder</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">🔄 Servis Yönetimi</div>
+                    <div class="btn-row">
+                        <button class="btn btn-warning" onclick="restartService('pocketbase')">🗄️ PocketBase</button>
+                        <button class="btn btn-warning" onclick="restartService('backend')">🖥️ Backend</button>
+                        <button class="btn btn-warning" onclick="restartService('frontend')">🌐 Frontend</button>
+                        <button class="btn btn-danger" onclick="restartAll()">⚡ Tümünü Restart</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">🗑️ Temizlik</div>
+                    <div class="btn-row">
+                        <button class="btn btn-danger" onclick="clearRooms()">🏠 Tüm Odaları Temizle</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── SETTINGS PAGE ── -->
+            <div class="page" id="page-settings">
+                <div class="card">
+                    <div class="card-title">🎨 Renkler</div>
+                    <div class="color-row">
+                        <span style="font-size:13px">Ana Renk</span>
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <input type="color" class="color-picker" id="cp-primary" value="#8b5cf6"
+                                oninput="saveColor('primaryColor',this.value)">
+                            <input type="text" id="ct-primary" value="#8b5cf6"
+                                style="width:90px;padding:6px 10px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid var(--border);color:#fff;font-size:12px"
+                                onchange="document.getElementById('cp-primary').value=this.value;saveColor('primaryColor',this.value)">
+                        </div>
+                    </div>
+                    <div class="color-row">
+                        <span style="font-size:13px">İkincil Renk</span>
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <input type="color" class="color-picker" id="cp-secondary" value="#ec4899"
+                                oninput="saveColor('secondaryColor',this.value)">
+                            <input type="text" id="ct-secondary" value="#ec4899"
+                                style="width:90px;padding:6px 10px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid var(--border);color:#fff;font-size:12px"
+                                onchange="document.getElementById('cp-secondary').value=this.value;saveColor('secondaryColor',this.value)">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">⚙️ Site Ayarları</div>
+                    <div class="field"><label>Site Adı</label><input type="text" id="set-sitename" value="LoveMatch">
+                    </div>
+                    <div class="field"><label>Hoş Geldin Mesajı</label><input type="text" id="set-welcome"
+                            value="Hoş geldiniz! 🎉"></div>
+                    <div class="field">
+                        <label>Max Oda Koltuğu</label>
+                        <select id="set-seats" onchange="saveSetting('maxRoomSeats',parseInt(this.value))">
+                            <option value="4">4</option>
+                            <option value="6">6</option>
+                            <option value="8" selected>8</option>
+                            <option value="10">10</option>
+                            <option value="12">12</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveAllSettings()">💾 Kaydet</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">🔧 Özellikler</div>
+                    <div class="toggle-row"><span>🎤 Sesli Sohbet</span><label class="toggle"><input type="checkbox"
+                                id="ft-voice" checked onchange="saveSetting('enableVoiceChat',this.checked)"><span
+                                class="toggle-slider"></span></label></div>
+                    <div class="toggle-row"><span>📹 Görüntülü Sohbet</span><label class="toggle"><input type="checkbox"
+                                id="ft-video" checked onchange="saveSetting('enableVideoChat',this.checked)"><span
+                                class="toggle-slider"></span></label></div>
+                    <div class="toggle-row"><span>🎮 Oyunlar</span><label class="toggle"><input type="checkbox"
+                                id="ft-games" checked onchange="saveSetting('enableGames',this.checked)"><span
+                                class="toggle-slider"></span></label></div>
+                    <div class="toggle-row"><span>🔍 1v1 Eşleşme</span><label class="toggle"><input type="checkbox"
+                                id="ft-match" checked onchange="saveSetting('enableMatchmaking',this.checked)"><span
+                                class="toggle-slider"></span></label></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">💻 Özel CSS</div>
+                    <div class="field"><textarea id="custom-css"
+                            placeholder="/* :root { --purple: #ff0080; } */"></textarea></div>
+                    <div class="btn-row">
+                        <button class="btn btn-primary" onclick="applyCustomCss()">▶ Uygula</button>
+                        <button class="btn btn-danger"
+                            onclick="document.getElementById('custom-css').value='';saveColor('customCss','')">🗑️
+                            Temizle</button>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /main -->
+    </div><!-- /layout -->
+
+
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            init3DPreview();
+            refreshAll();
+        });
+
+        // ─── 3D PREVIEW ─────────────────────────────
+        function init3DPreview() {
+            const container = document.getElementById('3d-preview-container');
+            const loader = document.getElementById('3d-loading');
+            if (!container || typeof THREE === 'undefined') {
+                if (loader) loader.textContent = '3D Kütüphanesi Yüklenemedi';
+                return;
+            }
+
+            if (loader) loader.style.display = 'none';
+
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a1a);
+
+            const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.z = 5;
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+
+            // Torus Knot
+            const geometry = new THREE.TorusKnotGeometry(1, 0.3, 100, 16);
+            const material = new THREE.MeshBasicMaterial({ color: 0x8b5cf6, wireframe: true });
+            const torusKnot = new THREE.Mesh(geometry, material);
+            scene.add(torusKnot);
+
+            // Particles
+            const particlesGeometry = new THREE.BufferGeometry();
+            const particlesCount = 500;
+            const posArray = new Float32Array(particlesCount * 3);
+            for (let i = 0; i < particlesCount * 3; i++) {
+                posArray[i] = (Math.random() - 0.5) * 10;
+            }
+            particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            const particlesMaterial = new THREE.PointsMaterial({
+                size: 0.02,
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.8
+            });
+            const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+            scene.add(particlesMesh);
+
+            function animate() {
+                requestAnimationFrame(animate);
+                torusKnot.rotation.x += 0.01;
+                torusKnot.rotation.y += 0.01;
+                particlesMesh.rotation.y -= 0.002;
+                renderer.render(scene, camera);
+            }
+            animate();
+
+            // Handle Resize
+            window.addEventListener('resize', () => {
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                renderer.setSize(width, height);
+                camera.aspect = width / height;
+                camera.updateProjectionMatrix();
+            });
+        }
+
+        // ─── PAGE NAV ───────────────────────────────
+        function showPage(id, btn) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+            document.getElementById('page-' + id).classList.add('active');
+            if (btn) btn.classList.add('active');
+            const titles = { dashboard: 'Dashboard', rooms: 'Odalar', security: 'Güvenlik', logs: 'Loglar', monitoring: 'Sistem İzleme', actions: 'Eylemler', settings: 'Site Ayarları' };
+            document.getElementById('page-title').textContent = titles[id] || id;
+            // Close sidebar on mobile
+            if (window.innerWidth <= 992) {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('sidebar-overlay');
+                if (sidebar.classList.contains('open')) {
+                    sidebar.classList.remove('open');
+                    overlay.classList.remove('active');
+                    document.body.style.overflow = '';
+                }
+            }
+        }
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+
+            // Body scroll lock on mobile
+            if (sidebar.classList.contains('open')) {
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.body.style.overflow = '';
+            }
+        }
+
+        // ─── LOG ────────────────────────────────────
+        const logBox = document.getElementById('log-box');
+        function addLog(tag, msg, type = 'info') {
+            const d = new Date();
+            const t = d.toLocaleTimeString('tr-TR');
+            const line = document.createElement('div');
+            line.className = 'log-line ' + type;
+            line.textContent = `[${t}] [${tag}] ${msg}`;
+            logBox.appendChild(line);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+        function clearLogs() { logBox.innerHTML = ''; toast('🗑️', 'Loglar temizlendi'); }
+
+        // ─── TOAST ──────────────────────────────────
+        function toast(icon, msg) {
+            const box = document.getElementById('toast-box');
+            const el = document.createElement('div');
+            el.className = 'toast';
+            el.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
+            box.appendChild(el);
+            setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(), 300); }, 3000);
+        }
+
+        // ─── AUTH ───────────────────────────────────
+        let ADMIN_AUTH = localStorage.getItem('admin_pass') || '';
+
+        async function apiFetch(url, options = {}) {
+            if (!options.headers) options.headers = {};
+            options.headers['Authorization'] = ADMIN_AUTH;
+
+            // Eğer GET ise ve şifre yoksa auth query ekle (opsiyonel)
+            // if (options.method === 'GET' || !options.method) {
+            //     const separator = url.includes('?') ? '&' : '?';
+            //     url += `${separator}auth=${ADMIN_AUTH}`;
+            // }
+
+            const res = await fetch(url, options);
+            if (res.status === 401) {
+                showLogin();
+                throw new Error('Yetkisiz');
+            }
+            return res;
+        }
+
+        function showLogin() {
+            // Şifre koruması kaldırıldı
+        }
+
+        function attemptLogin() {
+            const pass = document.getElementById('admin-pass-input').value;
+            if (!pass) return;
+            ADMIN_AUTH = pass;
+            localStorage.setItem('admin_pass', pass);
+            document.getElementById('login-overlay').style.display = 'none';
+            refreshAll();
+            loadSiteSettings();
+        }
+
+        // ─── STATS ──────────────────────────────────
+        async function fetchStats() {
+            try {
+                const res = await apiFetch('/admin/stats');
+                const d = await res.json();
+                document.getElementById('stat-online').textContent = d.totalSockets ?? 0;
+                document.getElementById('stat-rooms').textContent = d.totalRooms ?? 0;
+                document.getElementById('stat-seated').textContent = d.usersInSeats ?? 0;
+                document.getElementById('stat-uptime').textContent = formatUptime(d.uptime ?? 0);
+                document.getElementById('stat-mem').textContent = (d.memoryMB ?? 0) + ' MB';
+
+                const uPct = Math.min(((d.totalSockets ?? 0) / (d.maxCapacity || 100000)) * 100, 100).toFixed(1);
+                document.getElementById('cap-users').textContent = (d.totalSockets ?? 0) + '/' + (d.maxCapacity ?? 100000);
+                document.getElementById('bar-users').style.width = uPct + '%';
+
+                const vPct = Math.min(((d.usersInSeats ?? 0) / (d.maxVoice || 25000)) * 100, 100).toFixed(1);
+                document.getElementById('cap-voice').textContent = (d.usersInSeats ?? 0) + '/' + (d.maxVoice ?? 25000);
+                document.getElementById('bar-voice').style.width = vPct + '%';
+
+                const badge = document.getElementById('status-badge');
+                const banner = document.getElementById('maint-banner');
+                if (d.maintenanceMode) {
+                    badge.className = 'badge badge-maint';
+                    badge.textContent = '⚠️ Bakım Modu';
+                    banner.style.display = 'block';
+                    document.getElementById('maint-msg').textContent = d.maintenanceMessage || 'Sistem bakımda';
+                    document.getElementById('maint-toggle').checked = true;
+                    document.getElementById('maint-status').textContent = '⚠️ Bakım modu AKTİF';
+                } else {
+                    document.getElementById('maint-toggle').checked = false;
+                    document.getElementById('maint-status').textContent = '✅ Bakım modu kapalı';
+                }
+
+                // Render IP List
+                if (d.topIPs) {
+                    const ipEl = document.getElementById('ip-list');
+                    if (d.topIPs.length === 0) {
+                        ipEl.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)">Henüz trafik verisi yok</td></tr>';
+                    } else {
+                        ipEl.innerHTML = d.topIPs.map(item => `
+                            <tr style="border-bottom:1px solid rgba(255,255,255,0.02)">
+                                <td style="padding:12px 8px;font-family:monospace;font-weight:600">${item.ip}</td>
+                                <td style="padding:12px 8px">
+                                    <span class="badge ${item.hits > 120 ? 'badge-maint' : ''}" style="padding:2px 8px">${item.hits} istek</span>
+                                </td>
+                                <td style="padding:12px 8px;color:var(--muted);font-size:11px">${new Date(item.lastHit).toLocaleTimeString()}</td>
+                                <td style="padding:12px 8px;text-align:right">
+                                    <button class="btn btn-warning" onclick="resetIP('${item.ip}')" style="padding:4px 10px;font-size:11px">Sıfırla/Aç</button>
+                                </td>
+                            </tr>
+                        `).join('');
+                    }
+                }
+            } catch (e) {
+                addLog('HATA', 'Stats alınamadı: ' + e.message, 'error');
+            }
+        }
+
+        function formatUptime(s) {
+            const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = Math.floor(s % 60);
+            if (h > 0) return h + 'sa ' + m + 'dk';
+            if (m > 0) return m + 'dk ' + sec + 'sn';
+            return sec + 'sn';
+        }
+
+        // ─── USERS ──────────────────────────────────
+        async function loadUsers() {
+            try {
+                const search = document.getElementById('user-search').value;
+                const res = await apiFetch(`/admin/users?search=${encodeURIComponent(search)}`);
+                const data = await res.json();
+                const container = document.getElementById('user-list-container');
+
+                if (data.length === 0) {
+                    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">Kullanıcı bulunamadı.</div>';
+                    return;
+                }
+
+                container.innerHTML = data.map(u => `
+                    <div class="user-item">
+                        <div class="user-info">
+                            <img src="${u.avatar || ''}" class="user-avatar" onerror="this.style.background='#555'">
+                            <div>
+                                <div class="user-name">${u.username}</div>
+                                <div class="user-id">${u.id}</div>
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:8px">
+                            <button class="btn btn-warning" onclick="editUser('${u.id}')" style="padding:6px 10px;font-size:11px">Düzenle</button>
+                            <button class="btn btn-danger" onclick="deleteUser('${u.id}')" style="padding:6px 10px;font-size:11px">Sil</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error(e);
+                toast('❌', 'Kullanıcı listesi yüklenemedi');
+            }
+        }
+
+        async function editUser(id) {
+            // Basit düzenleme - sadece username
+            const newName = prompt("Yeni kullanıcı adı:");
+            if (newName) {
+                try {
+                    await apiFetch(`/admin/users/${id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: newName })
+                    });
+                    toast('✅', 'Kullanıcı güncellendi');
+                    loadUsers();
+                } catch (e) {
+                    toast('❌', 'Güncelleme hatası');
+                }
+            }
+        }
+
+        async function deleteUser(id) {
+            if (!confirm("Kullanıcıyı silmek istediğine emin misin?")) return;
+            try {
+                await apiFetch(`/admin/users/${id}`, { method: 'DELETE' });
+                toast('🗑️', 'Kullanıcı silindi');
+                loadUsers();
+            } catch (e) {
+                toast('❌', 'Silme hatası');
+            }
+        }
+
+        // ─── ROOMS ──────────────────────────────────
+        async function fetchRooms() {
+            try {
+                const res = await fetch('/rooms');
+                const data = await res.json();
+                const el = document.getElementById('room-list');
+                if (!data || data.length === 0) {
+                    el.innerHTML = '<div class="room-item"><div class="room-icon">💤</div><div class="room-info"><div class="room-name">Oda yok</div><div class="room-meta">Oluşturulan odalar burada görünecek</div></div></div>';
+                    return;
+                }
+                el.innerHTML = data.map(r => {
+                    const seated = r.seats ? r.seats.filter(Boolean).length : 0;
+                    return `<div class="room-item">
+        <div class="room-icon">${r.icon || '🎤'}</div>
+        <div class="room-info">
+          <div class="room-name">${esc(r.name)}</div>
+          <div class="room-meta">Sahibi: ${esc(r.ownerName || '?')} · İzleyici: ${r.viewerCount || 0}</div>
+        </div>
+        <span style="font-size:12px;font-weight:700;color:var(--muted)">👤 ${seated}/8</span>
+      </div>`;
+                }).join('');
+            } catch (e) {
+                addLog('ODA', 'Oda listesi alınamadı', 'error');
+            }
+        }
+        function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+        // ─── MAINTENANCE ────────────────────────────
+        async function toggleMaintenance() {
+            try {
+                const msg = document.getElementById('maint-input').value;
+                const res = await apiFetch('/admin/toggle-maintenance', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: msg })
+                });
+                const d = await res.json();
+                if (d.success) {
+                    toast(d.maintenanceMode ? '⚠️' : '✅', d.maintenanceMode ? 'Bakım modu aktif' : 'Bakım modu kapatıldı');
+                    addLog('ADMİN', d.maintenanceMode ? 'Bakım modu aktif edildi' : 'Bakım modu kapatıldı', d.maintenanceMode ? 'warn' : 'success');
+                    fetchStats();
+                }
+            } catch (e) { toast('❌', 'İşlem başarısız'); }
+        }
+
+        // ─── BROADCAST ──────────────────────────────
+        async function sendBroadcast() {
+            const msg = document.getElementById('broadcast-input').value.trim();
+            if (!msg) { toast('⚠️', 'Mesaj yazın'); return; }
+            try {
+                const res = await apiFetch('/admin/broadcast', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: msg })
+                });
+                const d = await res.json();
+                if (d.success) { toast('📢', 'Duyuru gönderildi'); addLog('ADMİN', 'Duyuru: ' + msg, 'success'); document.getElementById('broadcast-input').value = ''; }
+            } catch (e) { toast('❌', 'Gönderme başarısız'); }
+        }
+
+        // ─── RESTART ────────────────────────────────
+        async function restartService(svc) {
+            if (!confirm('🔄 ' + svc + ' yeniden başlatılacak. Emin misiniz?')) return;
+            try {
+                toast('🔄', svc + ' yeniden başlatılıyor...');
+                addLog('ADMİN', svc + ' restart isteği gönderildi', 'warn');
+                const res = await apiFetch('/admin/restart-' + svc, { method: 'POST' });
+                const d = await res.json();
+                if (d.success) { toast('✅', d.message || svc + ' yeniden başlatıldı'); addLog('ADMİN', svc + ' başarıyla yeniden başlatıldı', 'success'); }
+            } catch (e) { toast('❌', svc + ' restart başarısız'); }
+        }
+
+        async function restartAll() {
+            if (!confirm('⚡ Tüm servisler yeniden başlatılacak!')) return;
+            try {
+                await apiFetch('/admin/restart-all', { method: 'POST' });
+                toast('⚡', 'Tüm servisler yeniden başlatılıyor...');
+                addLog('ADMİN', 'Tüm servisler restart istendi', 'warn');
+            } catch (e) { }
+        }
+
+        async function clearRooms() {
+            if (!confirm('🗑️ Tüm odalar silinecek!')) return;
+            try {
+                const res = await apiFetch('/admin/clear-rooms', { method: 'POST' });
+                const d = await res.json();
+                toast('🗑️', d.deletedCount + ' oda silindi');
+                addLog('ADMİN', d.deletedCount + ' oda temizlendi', 'success');
+                fetchRooms();
+            } catch (e) { toast('❌', 'İşlem başarısız'); }
+        }
+
+        // ─── SETTINGS ───────────────────────────────
+        async function saveColor(key, val) {
+            try { await apiFetch('/admin/site-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [key]: val }) }); } catch (e) { }
+        }
+        async function saveSetting(key, val) {
+            try { await apiFetch('/admin/site-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [key]: val }) }); toast('✅', 'Kaydedildi'); } catch (e) { }
+        }
+        async function saveAllSettings() {
+            const name = document.getElementById('set-sitename').value;
+            const welcome = document.getElementById('set-welcome').value;
+            try {
+                await apiFetch('/admin/site-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ siteName: name, welcomeMessage: welcome }) });
+                toast('✅', 'Ayarlar kaydedildi');
+            } catch (e) { toast('❌', 'Kayıt başarısız'); }
+        }
+        async function applyCustomCss() {
+            const css = document.getElementById('custom-css').value;
+            try { await apiFetch('/admin/site-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ customCss: css }) }); toast('💻', 'CSS uygulandı'); } catch (e) { }
+        }
+        async function loadSiteSettings() {
+            try {
+                const res = await apiFetch('/admin/site-settings');
+                const d = await res.json();
+                if (!d.success) return;
+                const s = d.settings;
+                if (s.primaryColor) { document.getElementById('cp-primary').value = s.primaryColor; document.getElementById('ct-primary').value = s.primaryColor; }
+                if (s.secondaryColor) { document.getElementById('cp-secondary').value = s.secondaryColor; document.getElementById('ct-secondary').value = s.secondaryColor; }
+                if (s.siteName) document.getElementById('set-sitename').value = s.siteName;
+                if (s.welcomeMessage) document.getElementById('set-welcome').value = s.welcomeMessage;
+                if (s.maxRoomSeats) document.getElementById('set-seats').value = s.maxRoomSeats;
+                if (s.enableVoiceChat !== undefined) document.getElementById('ft-voice').checked = s.enableVoiceChat;
+                if (s.enableVideoChat !== undefined) document.getElementById('ft-video').checked = s.enableVideoChat;
+                if (s.enableGames !== undefined) document.getElementById('ft-games').checked = s.enableGames;
+                if (s.enableMatchmaking !== undefined) document.getElementById('ft-match').checked = s.enableMatchmaking;
+                if (s.customCss) document.getElementById('custom-css').value = s.customCss;
+            } catch (e) { }
+        }
+
+
+        async function resetIP(ip) {
+            if (!confirm(ip + ' adresinin istek sınırını sıfırlamak istiyor musunuz?')) return;
+            try {
+                const res = await apiFetch('/admin/reset-ip', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip })
+                });
+                const d = await res.json();
+                if (d.success) {
+                    toast('🛡️', ip + ' sıfırlandı');
+                    addLog('GÜVENLİK', ip + ' için engel/sınır sıfırlandı', 'success');
+                    fetchStats();
+                }
+            } catch (e) { toast('❌', 'Hata oluştu'); }
+        }
+
+        async function fetchPrometheusMetrics() {
+            try {
+                const res = await fetch('/admin/metrics');
+                const text = await res.text();
+                document.getElementById('metrics-raw').textContent = text;
+
+                // Parse some key metrics for the cards
+                const lines = text.split('\n');
+
+                // Socket Connections
+                const socketLine = lines.find(l => l.startsWith('socket_io_connections_total'));
+                if (socketLine) document.getElementById('metric-socket-conn').textContent = socketLine.split(' ')[1];
+
+                // HTTP Duration (approximate sum/count)
+                const durationSumLine = lines.find(l => l.startsWith('http_request_duration_seconds_sum'));
+                const durationCountLine = lines.find(l => l.startsWith('http_request_duration_seconds_count'));
+                if (durationSumLine && durationCountLine) {
+                    const avg = parseFloat(durationSumLine.split(' ')[1]) / parseFloat(durationCountLine.split(' ')[1]);
+                    document.getElementById('metric-http-duration').textContent = avg.toFixed(3) + ' sn';
+                }
+
+                // Event Loop Delay
+                const delayLine = lines.find(l => l.startsWith('nodejs_eventloop_lag_seconds'));
+                if (delayLine) {
+                    const ms = parseFloat(delayLine.split(' ')[1]) * 1000;
+                    document.getElementById('metric-event-loop').textContent = ms.toFixed(2) + ' ms';
+                }
+
+            } catch (e) {
+                console.error('Metrics fetch error:', e);
+            }
+        }
+
+        // ─── REFRESH ALL ────────────────────────────
+        function refreshAll() {
+            fetchStats();
+            fetchRooms();
+            fetchPrometheusMetrics();
+            toast('🔄', 'Veriler yenilendi');
+        }
+
+        // ─── INIT ───────────────────────────────────
+        addLog('SİSTEM', '🚀 Admin paneli başlatıldı', 'system');
+        setTimeout(() => { addLog('BACKEND', '✅ Backend bağlantısı tamam', 'success'); }, 500);
+        setTimeout(() => {
+            fetchStats();
+            fetchRooms();
+            fetchPrometheusMetrics();
+            loadSiteSettings();
+        }, 1000);
+        setInterval(fetchStats, 5000);
+        setInterval(fetchRooms, 10000);
+        setInterval(fetchPrometheusMetrics, 5000);
+    </script>
+</body>
+
+</html>

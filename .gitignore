@@ -1,0 +1,48 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# PocketBase
+pb_data/
+_pb_data/
+pocketbase/
+pocketbase.exe
+pocketbase_backup_pb_data/
+
+# Git tools (local bin)
+mingit/
+mingit.zip
+
+# Firebase
+.firebase/
+.runtimeconfig.json
+firebase-debug.log
+firestore-debug.log
+pubsub-debug.log
+ui-debug.log
+
+# Env
+.env
+.env.local
+.env.production

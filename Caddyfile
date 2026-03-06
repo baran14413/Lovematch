@@ -1,0 +1,41 @@
+{
+    admin off
+}
+
+lovemtch.shop {
+    log {
+        output file access.log
+    }
+
+    # Güvenlik başlıkları
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+
+    # Caddy route bloğu: sıralı eşleşme (ilk eşleşen kazanır)
+    route {
+        # ── Socket.io ──
+        @socketio path /socket.io*
+        reverse_proxy @socketio 127.0.0.1:4000
+
+        # ── Backend Admin API ──
+        @adminapi path /admin/stats /admin/login /admin/users /admin/users/* /admin/rooms /admin/rooms/* /admin/broadcast /admin/maintenance /admin/test-friend-request
+        reverse_proxy @adminapi 127.0.0.1:4000
+
+        # ── Backend API (odalar ve diğer) ──
+        @backend path /rooms /rooms/* /health /stats
+        reverse_proxy @backend 127.0.0.1:4000
+
+        # ── PocketBase ──
+        @pocketbase path /api/* /_/*
+        reverse_proxy @pocketbase 127.0.0.1:8090
+
+        # ── Frontend SPA (dist/ build) — Express 4000 üzerinden serve edilir ──
+        # DEV SERVER KULLANMA! Production build'i Express serve ediyor.
+        reverse_proxy 127.0.0.1:4000
+    }
+}

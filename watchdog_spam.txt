@@ -1,0 +1,31 @@
+
+[36m[1m
+╔═══════════════════════════════════════════════════╗
+║      🛡️  LOVEMATCH CLONE — WATCHDOG SİSTEMİ       ║
+║    Tüm servisler izleniyor, otomatik restart var  ║
+╚═══════════════════════════════════════════════════╝
+[0m
+
+[34m[1m[16:18:12] [PocketBase][0m 🚀 Başlatılıyor... (Restart #0)
+[34m[1m[16:18:12] [PocketBase][0m ✅ Çalışıyor (PID: 12092)
+[31m[1m[16:18:12] [WATCHDOG][0m ❌ Beklenmedik hata: listen EADDRINUSE: address already in use 127.0.0.1:3099
+[34m[1m[16:18:12] [PocketBase][0m 2026/02/22 16:18:12 Server started at http://0.0.0.0:8090
+├─ REST API: http://0.0.0.0:8090/api/
+└─ Admin UI: http://0.0.0.0:8090/_/
+[34m[1m[16:18:12] [PocketBase][0m Error: listen tcp 0.0.0.0:8090: bind: Only one usage of each socket address (protocol/network address/port) is normally permitted.
+[33m[1m[16:18:12] [PocketBase][0m 🔄 Durdu (kod: 0) → Yeniden başlatılıyor...
+[33m[1m[16:18:14] [WATCHDOG][0m ⏳ PocketBase crash-loop koruması — 2sn bekleniyor (restart #1)
+[32m[1m[16:18:15] [Backend (Node.js)][0m 🚀 Başlatılıyor... (Restart #0)
+[32m[1m[16:18:15] [Backend (Node.js)][0m ✅ Çalışıyor (PID: 9964)
+[33m[1m[16:18:15] [Backend (Node.js)·ERR][0m UNCAUGHT EXCEPTION: Error: listen EADDRINUSE: address already in use 0.0.0.0:3001
+    at Server.setupListenHandle [as _listen2] (node:net:2016:16)
+    at listenInCluster (node:net:2073:12)
+    at node:net:2282:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '0.0.0.0',
+  port: 3001
+}
+[33m[1m[16:18:16] [WATCHDOG][0m ⏳ PocketBase crash-loop koruması — 2sn bekleniyor (restart #1)
