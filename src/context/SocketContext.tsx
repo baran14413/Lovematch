@@ -65,7 +65,7 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
 
         // Firebase Cloud Function URL or Custom Domain
         // Updated to use the correct production URL
-        const socket = io('https://lovemtch.shop', {
+        const socket = io('/', {
             path: '/socket.io',
             transports: ['websocket'],
             reconnection: true,
