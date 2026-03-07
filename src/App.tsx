@@ -587,10 +587,16 @@ function AppInner() {
     useEffect(() => {
         // OneSignal Initialization
         try {
-            OneSignal.initialize("dac0906c-e76a-46d4-bf59-4702ddc2cf70");
-            OneSignal.Notifications.requestPermission(true);
+            if (OneSignal && typeof OneSignal.initialize === 'function') {
+                OneSignal.initialize("dac0906c-e76a-46d4-bf59-4702ddc2cf70");
+                if (OneSignal.Notifications && typeof OneSignal.Notifications.requestPermission === 'function') {
+                    OneSignal.Notifications.requestPermission(true);
+                }
+            } else {
+                console.warn("OneSignal is not available or properly loaded on this platform.");
+            }
         } catch (e) {
-            console.error("OneSignal Init Error:", e);
+            console.error("OneSignal Init Warning (Non-Fatal):", e);
         }
 
         NotificationService.init();
