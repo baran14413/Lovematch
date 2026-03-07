@@ -67,7 +67,6 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
         // Updated to use the correct production URL
         const socket = io('/', {
             path: '/socket.io',
-            transports: ['websocket'],
             reconnection: true,
             reconnectionAttempts: 10,
             reconnectionDelay: 1000,
