@@ -246,55 +246,35 @@ let pbReady = false; // PocketBase bağlantı durumu
 // ─── PocketBase Bağlantısı ve Koleksiyon Kontrolü ───
 async function initPocketBase() {
     try {
+        console.log('[PB] 🔄 PocketBase bağlantısı deneniyor...');
         // Admin olarak giriş yap
         await pbAdmin.collection('_superusers').authWithPassword(
             'emirhandesdemir@gmail.com',
             'Gunahbenim09'
-        );
-        console.log('[PB] ✅ PocketBase admin girişi başarılı');
+        ).catch(e => {
+            console.warn('[PB] ⚠️ Admin girişi başarısız, çevrimdışı modda devam ediliyor.');
+        });
 
-        // 'rooms' koleksiyonu var mı kontrol et
-        try {
-            await pbAdmin.collections.getOne('rooms');
-            console.log('[PB] ✅ rooms koleksiyonu mevcut');
-        } catch {
-            // Yoksa oluştur
-            console.log('[PB] 🔧 rooms koleksiyonu oluşturuluyor...');
-            await pbAdmin.collections.create({
-                name: 'rooms',
-                type: 'base',
-                fields: [
-                    { name: 'roomId', type: 'text', required: true },
-                    { name: 'name', type: 'text', required: true },
-                    { name: 'ownerUid', type: 'text', required: true },
-                    { name: 'ownerName', type: 'text', required: false },
-                    { name: 'ownerAvatar', type: 'text', required: false },
-                    { name: 'maxSeatCount', type: 'number', required: false },
-                    { name: 'boostLevel', type: 'number', required: false },
-                    { name: 'isSleeping', type: 'bool', required: false },
-                    { name: 'admins', type: 'json', required: false },
-                    { name: 'mutedUsers', type: 'json', required: false },
-                    { name: 'blockedUsers', type: 'json', required: false },
-                    { name: 'followers', type: 'json', required: false },
-                    { name: 'lockedSeats', type: 'json', required: false },
-                    { name: 'layout', type: 'text', required: false },
-                    { name: 'roomCreatedAt', type: 'number', required: false },
-                    { name: 'announcement', type: 'text', required: false },
-                ],
-                listRule: '',
-                viewRule: '',
-                createRule: null,
-                updateRule: null,
-                deleteRule: null,
-            });
-            console.log('[PB] ✅ rooms koleksiyonu oluşturuldu!');
+        if (pbAdmin.authStore.isValid) {
+            console.log('[PB] ✅ PocketBase admin girişi başarılı');
+            pbReady = true;
+
+            // rooms koleksiyonu kontrolü
+            try {
+                await pbAdmin.collections.getOne('rooms');
+                console.log('[PB] ✅ rooms koleksiyonu mevcut');
+            } catch (e) {
+                console.log('[PB] 🔧 rooms koleksiyonu bulunamadı (Migrasyon modunda otomatik oluşturma atlandı)');
+            }
         }
-
-        pbReady = true;
     } catch (e) {
-        console.error('[PB] ❌ PocketBase bağlantı hatası:', e.message);
+        console.error('[PB] ❌ PocketBase başlatma hatası:', e.message);
         pbReady = false;
     }
+}
+
+async function checkPBHealth() {
+    return pbReady;
 }
 
 // ─── PocketBase'den Odaları Yükle ───
@@ -1492,7 +1472,7 @@ setInterval(() => {
 }, 5 * 60 * 1000); // 5 dakikada bir çalış
 
 // ─── SPA FALLBACK ───
-app.get('*', (req, res) => {
+app.use((req, res) => {
     // console.log(`[DEBUG] Fallback hit for path: ${req.path}`);
 
     if (req.path.startsWith('/socket.io') || req.path.startsWith('/api') || req.path.startsWith('/rooms') || req.path.startsWith('/admin')) {
