@@ -1488,7 +1488,14 @@ app.use((req, res) => {
         return res.status(404).send('Not Found');
     }
 
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+    const indexPath = path.join(__dirname, 'dist', 'index.html');
+    if (fs.existsSync(indexPath)) {
+        // console.log(`[SPA] Serving: ${indexPath}`);
+        res.sendFile(indexPath);
+    } else {
+        console.error(`[SPA] CRITICAL: index.html not found at ${indexPath}`);
+        res.status(500).send(`Error: dist/index.html missing. Path: ${indexPath}`);
+    }
 });
 
 httpServer.listen(PORT, '0.0.0.0', () => {
