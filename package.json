@@ -1,7 +1,7 @@
 {
   "name": "lovematch",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.6.0",
   "type": "module",
   "scripts": {
     "dev": "concurrently -n \"PocketBase,Backend,Frontend\" -c \"blue,green,magenta\" \"pocketbase\\\\pocketbase.exe serve --http=0.0.0.0:8090\" \"node server.js\" \"vite --host\"",
