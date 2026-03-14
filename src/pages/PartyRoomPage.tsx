@@ -227,7 +227,7 @@ export function PartyRoomPage({ onRoomJoin }: { onRoomJoin?: (id: string, name: 
             // Firebase üzerinden odaları çek (VDS bağımlılığı kalktı)
             const data = await pb.collection('rooms').getFullList({
                 sort: '-viewerCount',
-                expand: 'owner'
+                expand: 'ownerUid'
             });
 
             // Veriyi UI formatına dönüştür
@@ -235,8 +235,8 @@ export function PartyRoomPage({ onRoomJoin }: { onRoomJoin?: (id: string, name: 
                 id: r.id,
                 name: r.name || 'İsimsiz Oda',
                 ownerUid: r.ownerUid || r.owner,
-                ownerName: r.ownerName || r.expand?.owner?.username || 'Kullanıcı',
-                ownerAvatar: r.ownerAvatar || r.expand?.owner?.avatar || '',
+                ownerName: r.ownerName || r.expand?.ownerUid?.username || 'Kullanıcı',
+                ownerAvatar: r.ownerAvatar || r.expand?.ownerUid?.avatar || '',
                 viewerCount: r.viewerCount || 0,
                 seatedCount: r.seatedCount || 0,
                 maxSeatCount: r.maxSeatCount || 8,

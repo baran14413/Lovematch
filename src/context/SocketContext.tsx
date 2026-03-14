@@ -9,22 +9,24 @@ import {
     serverTimestamp,
     doc,
     updateDoc,
-    getDoc
+    getDoc,
+    arrayUnion,
+    arrayRemove,
+    deleteDoc,
+    increment
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { pb } from '../pb';
 
 /**
  * =========================================================================
- *  LOVEMATCH - FIREBASE REALTIME SOCKET EMÜLATÖRÜ
+ *  LOVEMATCH - FIREBASE REALTIME SOCKET EMÜLATÖRÜ (v2.0 Advanced)
  *  VDS socket.io tamamen kaldırıldı!
  *  Artık tüm gerçek zamanlı iletişim Firebase Firestore üzerinden çalışıyor.
- *  socket.emit() → Firestore'a yazma
- *  socket.on()   → Firestore onSnapshot dinleyici
+ *  WebRTC Sinyalleşme, Oda Durumları ve Mesajlar Firestore ile simüle ediliyor.
  * =========================================================================
  */
 
-// Firebase'de mesaj/event gönderme tipi
 interface FirebaseEvent {
     type: string;
     data: any;
@@ -35,7 +37,6 @@ interface FirebaseEvent {
     read?: boolean;
 }
 
-// Socket context interface - eski socket.io API'sine uyumlu
 interface SocketContextType {
     socket: FirebaseSocketEmulator | null;
     isConnected: boolean;
@@ -54,27 +55,48 @@ const SocketContext = createContext<SocketContextType>({
 
 export const useSocket = () => useContext(SocketContext);
 
-// ─── Firebase Socket Emülatörü ────────────────────────────────
-// socket.io API'sine benzer bir arayüz sağlar ama Firestore kullanır
 class FirebaseSocketEmulator {
-    // Event dinleyicileri
     private listeners: Map<string, Set<(data: any) => void>> = new Map();
-    // Aktif Firestore abonelikleri
-    private unsubscribers: (() => void)[] = [];
-    public id: string = 'firebase-' + Math.random().toString(36).slice(2);
+    private unsubscribers: Map<string, () => void> = new Map();
+    public id: string; // socket.id emülasyonu (uid kullanıyoruz)
+    private currentRoomId: string | null = null;
 
     constructor(private uid: string) {
-        // Gelen DM mesajlarını dinle
+        this.id = uid; // uid'yi socket id olarak kullanıyoruz (stabilite için)
         this.listenForDMs();
-        // Sistem bildirimlerini dinle
         this.listenForSystemNotifications();
+        this.listenForWebRTCSignals();
     }
 
-    // ─── Firestore'dan DM dinle ───
+    // ─── WebRTC Sinyallerini Dinle ───
+    private listenForWebRTCSignals() {
+        if (!this.uid) return;
+        const q = query(
+            collection(db, 'signaling'),
+            where('toUid', '==', this.uid)
+        );
+
+        const unsub = onSnapshot(q, (snapshot) => {
+            snapshot.docChanges().forEach(async (change) => {
+                if (change.type === 'added') {
+                    const data = change.doc.data();
+                    // webrtc_signal event'ini tetikle
+                    this.emit_local('webrtc_signal', {
+                        from: data.fromUid,
+                        signal: data.signal,
+                        type: data.signalType
+                    });
+                    // Sinyali okunduktan sonra sil (Firestore'u temiz tut)
+                    deleteDoc(change.doc.ref).catch(() => { });
+                }
+            });
+        });
+        this.unsubscribers.set('signaling', unsub);
+    }
+
+    // ─── DM Dinle ───
     private listenForDMs() {
         if (!this.uid) return;
-
-        // Bu kullanıcıya gelen mesajları dinle
         const q = query(
             collection(db, 'direct_messages'),
             where('toUid', '==', this.uid),
@@ -85,9 +107,7 @@ class FirebaseSocketEmulator {
         const unsub = onSnapshot(q, (snapshot) => {
             snapshot.docChanges().forEach(async (change) => {
                 if (change.type === 'added') {
-                    const data = change.doc.data() as FirebaseEvent;
-
-                    // DM bildirimini tetikle
+                    const data = change.doc.data();
                     this.emit_local('receive_dm', {
                         senderId: data.fromUid,
                         text: data.data?.text || '',
@@ -95,29 +115,18 @@ class FirebaseSocketEmulator {
                         avatar: data.data?.avatar || '',
                         timestamp: data.timestamp
                     });
-
-                    // Firestore'da okundu olarak işaretle (kısa gecikme ile)
-                    setTimeout(async () => {
-                        try {
-                            await updateDoc(doc(db, 'direct_messages', change.doc.id), {
-                                read: true
-                            });
-                        } catch { }
+                    setTimeout(() => {
+                        updateDoc(change.doc.ref, { read: true }).catch(() => { });
                     }, 1000);
                 }
             });
-        }, (error) => {
-            // İndeks yoksa sessizce devam et - uygulama çalışmaya devam eder
-            console.warn('[FirebaseSocket] DM listener hatası:', error.message);
-        });
-
-        this.unsubscribers.push(unsub);
+        }, (err) => console.warn('[FirebaseSocket] DM Error:', err.message));
+        this.unsubscribers.set('dms', unsub);
     }
 
-    // ─── Sistem bildirimlerini dinle ───
+    // ─── Sistem Bildirimleri ───
     private listenForSystemNotifications() {
         if (!this.uid) return;
-
         const q = query(
             collection(db, 'notifications'),
             where('toUid', '==', this.uid),
@@ -128,78 +137,35 @@ class FirebaseSocketEmulator {
             snapshot.docChanges().forEach(async (change) => {
                 if (change.type === 'added') {
                     const data = change.doc.data();
-
-                    // Bildirim tipine göre event gönder
                     if (data.type === 'system' || data.type === 'broadcast') {
-                        this.emit_local('system_notification', {
-                            title: data.title || 'Bildirim',
-                            body: data.body || '',
-                            data: data
-                        });
-                    } else if (data.type === 'friend_request') {
-                        this.emit_local('friend_request_received', {
-                            fromUid: data.fromUid,
-                            fromName: data.fromName || 'Birisi'
-                        });
+                        this.emit_local('system_notification', { title: data.title, body: data.body });
                     }
-
-                    // Okundu işaretle
-                    setTimeout(async () => {
-                        try {
-                            await updateDoc(doc(db, 'notifications', change.doc.id), {
-                                read: true
-                            });
-                        } catch { }
-                    }, 1000);
+                    updateDoc(change.doc.ref, { read: true }).catch(() => { });
                 }
             });
-        }, (error) => {
-            console.warn('[FirebaseSocket] Notification listener hatası:', error.message);
         });
-
-        this.unsubscribers.push(unsub);
+        this.unsubscribers.set('notifications', unsub);
     }
 
-    // ─── socket.on() emülatörü - event dinleme ───
     on(event: string, callback: (data: any) => void) {
-        if (!this.listeners.has(event)) {
-            this.listeners.set(event, new Set());
-        }
+        if (!this.listeners.has(event)) this.listeners.set(event, new Set());
         this.listeners.get(event)!.add(callback);
     }
 
-    // ─── socket.once() emülatörü - tek seferlik dinleme ───
     once(event: string, callback: (data: any) => void) {
-        const onceWrapper = (data: any) => {
-            this.off(event, onceWrapper);
-            callback(data);
-        };
-        this.on(event, onceWrapper);
+        const wrapper = (data: any) => { this.off(event, wrapper); callback(data); };
+        this.on(event, wrapper);
     }
 
-    // ─── socket.off() emülatörü - event dinlemeyi bırak ───
     off(event: string, callback?: (data: any) => void) {
-        if (!callback) {
-            this.listeners.delete(event);
-            return;
-        }
-        const eventListeners = this.listeners.get(event);
-        if (eventListeners) {
-            eventListeners.delete(callback);
-        }
+        if (!callback) { this.listeners.delete(event); return; }
+        this.listeners.get(event)?.delete(callback);
     }
 
-    // ─── socket.emit() emülatörü - Firestore'a yaz ───
     emit(event: string, data?: any) {
-        // Auth event'i - Firestore'da kullanıcı online durumunu güncelle
-        if (event === 'auth') {
-            this.handleAuth(data);
-            return;
-        }
+        if (event === 'auth') { this.handleAuth(data); return; }
 
-        // Oda Oluşturma - Firestore'da oda belgesi oluştur
         if (event === 'create_room' && data?.name) {
-            console.log('[FirebaseSocket] Oda oluşturuluyor:', data.name);
             const roomData = {
                 name: data.name,
                 ownerUid: this.uid,
@@ -212,23 +178,87 @@ class FirebaseSocketEmulator {
                 followerCount: 0,
                 isSleeping: false,
                 seats: new Array(data.seatCount || 8).fill(null),
+                messages: [],
                 created: serverTimestamp(),
                 updated: serverTimestamp()
             };
-
-            addDoc(collection(db, 'rooms'), roomData)
-                .then(docRef => {
-                    console.log('[FirebaseSocket] Oda başarıyla oluşturuldu:', docRef.id);
-                    // room_created event'ini tetikle
-                    this.emit_local('room_created', docRef.id);
-                })
-                .catch(e => {
-                    console.error('[FirebaseSocket] Oda oluşturma hatası:', e);
-                });
+            addDoc(collection(db, 'rooms'), roomData).then(docRef => {
+                this.emit_local('room_created', docRef.id);
+            });
             return;
         }
 
-        // DM göndermek için Firestore'a yaz
+        if (event === 'join_room') {
+            const roomId = data;
+            this.currentRoomId = roomId;
+            // Oda bazlı listener başlat (Öncekini temizle)
+            if (this.unsubscribers.has('room')) this.unsubscribers.get('room')!();
+
+            const unsub = onSnapshot(doc(db, 'rooms', roomId), (docSnap) => {
+                if (docSnap.exists()) {
+                    const roomData = { id: docSnap.id, ...docSnap.data() };
+                    this.emit_local('room_snapshot', roomData);
+                }
+            });
+            this.unsubscribers.set('room', unsub);
+
+            // İzleyici sayısını artır
+            updateDoc(doc(db, 'rooms', roomId), { viewerCount: increment(1) }).catch(() => { });
+            return;
+        }
+
+        if (event === 'send_msg' && this.currentRoomId) {
+            updateDoc(doc(db, 'rooms', this.currentRoomId), {
+                messages: arrayUnion({
+                    id: Math.random().toString(36).slice(2),
+                    uid: this.uid,
+                    username: pb.authStore.model?.username || 'Kullanıcı',
+                    text: data,
+                    timestamp: Date.now()
+                })
+            });
+            return;
+        }
+
+        if (event === 'take_seat' && this.currentRoomId) {
+            getDoc(doc(db, 'rooms', this.currentRoomId)).then(snap => {
+                if (snap.exists()) {
+                    const roomsData = snap.data();
+                    const seats = [...roomsData.seats];
+                    seats[data] = {
+                        uid: this.uid,
+                        socketId: this.id,
+                        username: pb.authStore.model?.username || 'Kullanıcı',
+                        avatar: pb.authStore.model?.avatar || ''
+                    };
+                    updateDoc(snap.ref, { seats, seatedCount: increment(1) });
+                }
+            });
+            return;
+        }
+
+        if (event === 'leave_seat' && this.currentRoomId) {
+            getDoc(doc(db, 'rooms', this.currentRoomId)).then(snap => {
+                if (snap.exists()) {
+                    const roomsData = snap.data();
+                    const seats = roomsData.seats.map((s: any) => s?.uid === this.uid ? null : s);
+                    updateDoc(snap.ref, { seats, seatedCount: increment(-1) });
+                }
+            });
+            return;
+        }
+
+        if (event === 'webrtc_signal' && data.to) {
+            addDoc(collection(db, 'signaling'), {
+                fromUid: this.uid,
+                toUid: data.to,
+                signal: data.signal,
+                signalType: data.type,
+                timestamp: serverTimestamp()
+            }).catch(() => { });
+            return;
+        }
+
         if (event === 'send_dm' && data?.toUid) {
             addDoc(collection(db, 'direct_messages'), {
                 fromUid: this.uid,
@@ -237,142 +267,67 @@ class FirebaseSocketEmulator {
                 type: 'dm',
                 read: false,
                 timestamp: serverTimestamp()
-            }).catch(e => console.warn('[FirebaseSocket] DM gönderme hatası:', e));
+            });
             return;
         }
 
-        // Diğer event'ler için local emit
         this.emit_local(event, data);
     }
 
-    // ─── Local event tetikleme (Firestore listener'lardan gelen) ───
     private emit_local(event: string, data: any) {
-        const eventListeners = this.listeners.get(event);
-        if (eventListeners) {
-            eventListeners.forEach(callback => {
-                try { callback(data); } catch (e) { console.warn('[FirebaseSocket] Callback hatası:', e); }
-            });
-        }
+        this.listeners.get(event)?.forEach(cb => { try { cb(data); } catch { } });
     }
 
-    // ─── Auth handler - kullanıcı online durumunu güncelle ───
     private async handleAuth(data: any) {
         if (!data?.uid) return;
-        try {
-            const userRef = doc(db, 'users', data.uid);
-            await updateDoc(userRef, {
-                online: true,
-                lastSeen: serverTimestamp(),
-                color: data.color || '#8b5cf6'
-            }).catch(() => { }); // Belge yoksa hata vermez
-
-            // auth_ok event'ini simüle et
-            setTimeout(() => {
-                this.emit_local('auth_ok', { username: data.username, uid: data.uid });
-            }, 100);
-        } catch { }
+        const userRef = doc(db, 'users', data.uid);
+        updateDoc(userRef, { online: true, lastSeen: serverTimestamp(), color: data.color || '#8b5cf6' }).catch(() => { });
+        setTimeout(() => this.emit_local('auth_ok', { username: data.username, uid: data.uid }), 100);
     }
 
-    // ─── Bağlantıyı temizle ───
     disconnect() {
-        this.unsubscribers.forEach(unsub => {
-            try { unsub(); } catch { }
-        });
-        this.unsubscribers = [];
-        this.listeners.clear();
-
-        // Çevrimdışı yap
-        if (this.uid) {
-            updateDoc(doc(db, 'users', this.uid), {
-                online: false,
-                lastSeen: serverTimestamp()
-            }).catch(() => { });
-        }
+        this.unsubscribers.forEach(unsub => unsub());
+        this.unsubscribers.clear();
+        if (this.uid) updateDoc(doc(db, 'users', this.uid), { online: false, lastSeen: serverTimestamp() }).catch(() => { });
+        if (this.currentRoomId) updateDoc(doc(db, 'rooms', this.currentRoomId), { viewerCount: increment(-1) }).catch(() => { });
     }
 }
 
-// Global singleton - bir kez oluştur
 let globalFirebaseSocket: FirebaseSocketEmulator | null = null;
-
 const MEMOJIS = ['jack.png', 'leo.png', 'lily.png', 'max.png', 'mia.png', 'sam.png', 'zoe.png'];
 const getRandomMemoji = () => `/assets/${MEMOJIS[Math.floor(Math.random() * MEMOJIS.length)]}`;
 
-// ─── SocketProvider - artık Firebase kullanıyor ───────────────
 export const SocketProvider = ({ children }: { children: ReactNode }) => {
     const [isConnected, setIsConnected] = useState(false);
     const [authStatus, setAuthStatus] = useState<'idle' | 'authenticating' | 'authenticated' | 'error'>('idle');
-    const [, setTick] = useState(0);
 
-    // Firebase socket başlat
     const initSocket = useCallback(() => {
         const user = pb.authStore.model;
-        if (!user?.id) return null;
-
-        // Aynı kullanıcı için tekrar oluşturma
-        if (globalFirebaseSocket) return globalFirebaseSocket;
-
-        console.log('[FirebaseSocket] Başlatılıyor - UID:', user.id);
-
+        if (!user?.id || globalFirebaseSocket) return globalFirebaseSocket;
         const socket = new FirebaseSocketEmulator(user.id);
         globalFirebaseSocket = socket;
-
-        // Auth gönder
-        const avatarUrl = user.avatar
-            ? pb.files.getUrl(user, user.avatar)
-            : getRandomMemoji();
-
         setAuthStatus('authenticating');
         socket.emit('auth', {
             uid: user.id,
-            username: user.username || user.name || 'Kullanıcı',
-            avatar: avatarUrl,
-            color: user.color || '#8b5cf6',
-            bubbleStyle: user.bubble_style || 'classic'
+            username: user.username || 'Kullanıcı',
+            avatar: user.avatar ? pb.files.getUrl(user, user.avatar) : getRandomMemoji()
         });
-
-        // auth_ok dinle
-        socket.on('auth_ok', () => {
-            console.log('[FirebaseSocket] Bağlandı ve auth başarılı');
-            setIsConnected(true);
-            setAuthStatus('authenticated');
-            setTick(t => t + 1);
-        });
-
+        socket.on('auth_ok', () => { setIsConnected(true); setAuthStatus('authenticated'); });
         return socket;
     }, []);
 
-    const connect = useCallback(() => {
-        if (!globalFirebaseSocket) {
-            initSocket();
-        }
-    }, [initSocket]);
-
-    // Auth state değişince socket'i yeniden init et
     useEffect(() => {
-        // Firebase auth hazır olunca socket'i başlat
-        pb.authReadyPromise?.then(() => {
-            if (pb.authStore.model?.id) {
-                initSocket();
-            }
-        }).catch(() => { });
-
-        // Auth değişikliklerini dinle
+        pb.authReadyPromise?.then(() => { if (pb.authStore.model?.id) initSocket(); });
         const unbind = pb.authStore.onChange((_: string, model: any) => {
-            if (model?.id && !globalFirebaseSocket) {
-                initSocket();
-            } else if (!model && globalFirebaseSocket) {
-                // Logout olunca socket'i temizle
+            if (model?.id && !globalFirebaseSocket) initSocket();
+            else if (!model && globalFirebaseSocket) {
                 globalFirebaseSocket.disconnect();
                 globalFirebaseSocket = null;
                 setIsConnected(false);
                 setAuthStatus('idle');
-                setTick(t => t + 1);
             }
         });
-
-        return () => {
-            unbind();
-        };
+        return () => unbind();
     }, [initSocket]);
 
     return (
@@ -381,7 +336,7 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
             isConnected,
             authStatus,
             transport: 'firebase-firestore',
-            connect
+            connect: initSocket
         }}>
             {children}
         </SocketContext.Provider>

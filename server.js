@@ -569,7 +569,7 @@ app.delete('/admin/rooms/:id', adminAuth, (req, res) => {
     io.in(roomId).socketsLeave(roomId);
 
     rooms.delete(roomId);
-    deleteRoomFromPB(roomId); // PocketBase'den de sil
+    deleteRoomFromFirestore(roomId); // Firestore dan da sil
     saveRoomsToFile(); // JSON yedekten de sil
     io.emit('room_list_update');
 
@@ -747,7 +747,7 @@ io.on('connection', (socket) => {
         const newRoom = new Room(roomId, roomName, user.uid, user.username, user.avatar, finalSeatCount);
 
         rooms.set(roomId, newRoom);
-        saveRoomToPB(newRoom); // PocketBase'e anında kaydet
+        saveRoomToFirestore(newRoom); // Firestore'a anında kaydet
         saveRoomsToFile(); // JSON yedek
         console.log(`[ROOM] Created: ${roomName} (${roomId}) - ${finalSeatCount} koltuk`);
 
@@ -814,7 +814,7 @@ io.on('connection', (socket) => {
 
                 const sysMsg = room.addMessage('system_chat', { username: 'Sistem', avatar: '/assets/jack.png', uid: 'sys' }, `Moderatör ${user.username} sohbet geçmişini temizledi. 🧹`);
                 io.to(room.id).emit('msg', sysMsg);
-                saveRoomToPB(room);
+                saveRoomToFirestore(room);
                 saveRoomsToFile();
                 return;
             }
@@ -855,7 +855,7 @@ io.on('connection', (socket) => {
         const sysMsg = room.addMessage('system', null, `Yavaş Mod ${room.slowMode ? 'Aktif (5s)' : 'Kapatıldı'}`);
         io.to(room.id).emit('msg', sysMsg);
 
-        saveRoomToPB(room);
+        saveRoomToFirestore(room);
         saveRoomsToFile();
     });
 
@@ -875,7 +875,7 @@ io.on('connection', (socket) => {
         const sysMsg = room.addMessage('system', null, `Oda Sohbeti ${room.chatDisabled ? 'Kapatıldı' : 'Açıldı'}`);
         io.to(room.id).emit('msg', sysMsg);
 
-        saveRoomToPB(room);
+        saveRoomToFirestore(room);
         saveRoomsToFile();
     });
 
@@ -893,7 +893,7 @@ io.on('connection', (socket) => {
         io.to(room.id).emit('announcement_updated', text);
 
         // Veritabanına kaydet
-        saveRoomToPB(room);
+        saveRoomToFirestore(room);
         saveRoomsToFile();
     });
 
@@ -1232,7 +1232,7 @@ io.on('connection', (socket) => {
                 io.to(room.id).emit('msg', room.addMessage('system', null, 'Yeni bir moderatör atandı!'));
             }
             io.to(room.id).emit('room_updated', room.snapshot);
-            saveRoomToPB(room);
+            saveRoomToFirestore(room);
             saveRoomsToFile();
             return;
         }

@@ -119,7 +119,9 @@ class CollectionAdapter {
             'members': 'users',
             'room': 'rooms',
             'to_user': 'users',
-            'from_user': 'users'
+            'from_user': 'users',
+            'ownerUid': 'users',
+            'toUid': 'users'
         };
 
         const cache = new Map<string, any>();

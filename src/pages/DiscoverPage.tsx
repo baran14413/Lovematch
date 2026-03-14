@@ -20,7 +20,8 @@ export default function DiscoverPage() {
         const fetchUsers = async () => {
             setLoading(true);
             try {
-                const res = await pb.collection('users').getList(1, 50, { sort: '-updated' });
+                // Not: Index hatasını önlemek için sıralama (sort) geçici olarak kaldırıldı.
+                const res = await pb.collection('users').getList(1, 50);
                 setUsers(res.items);
             } catch (e) {
                 console.error(e);
