@@ -168,6 +168,15 @@ class FirebaseSocketEmulator {
         this.listeners.get(event)!.add(callback);
     }
 
+    // ─── socket.once() emülatörü - tek seferlik dinleme ───
+    once(event: string, callback: (data: any) => void) {
+        const onceWrapper = (data: any) => {
+            this.off(event, onceWrapper);
+            callback(data);
+        };
+        this.on(event, onceWrapper);
+    }
+
     // ─── socket.off() emülatörü - event dinlemeyi bırak ───
     off(event: string, callback?: (data: any) => void) {
         if (!callback) {
@@ -185,6 +194,37 @@ class FirebaseSocketEmulator {
         // Auth event'i - Firestore'da kullanıcı online durumunu güncelle
         if (event === 'auth') {
             this.handleAuth(data);
+            return;
+        }
+
+        // Oda Oluşturma - Firestore'da oda belgesi oluştur
+        if (event === 'create_room' && data?.name) {
+            console.log('[FirebaseSocket] Oda oluşturuluyor:', data.name);
+            const roomData = {
+                name: data.name,
+                ownerUid: this.uid,
+                ownerName: pb.authStore.model?.username || 'Kullanıcı',
+                ownerAvatar: pb.authStore.model?.avatar || '',
+                maxSeatCount: data.seatCount || 8,
+                viewerCount: 0,
+                seatedCount: 0,
+                boostLevel: 1,
+                followerCount: 0,
+                isSleeping: false,
+                seats: new Array(data.seatCount || 8).fill(null),
+                created: serverTimestamp(),
+                updated: serverTimestamp()
+            };
+
+            addDoc(collection(db, 'rooms'), roomData)
+                .then(docRef => {
+                    console.log('[FirebaseSocket] Oda başarıyla oluşturuldu:', docRef.id);
+                    // room_created event'ini tetikle
+                    this.emit_local('room_created', docRef.id);
+                })
+                .catch(e => {
+                    console.error('[FirebaseSocket] Oda oluşturma hatası:', e);
+                });
             return;
         }
 

@@ -206,11 +206,7 @@ function FloatingLobbyBackground() {
     );
 }
 
-export function PartyRoomPage({
-    onRoomJoin,
-}: {
-    onRoomJoin?: (id: string, name: string, icon?: string) => void;
-}) {
+export function PartyRoomPage({ onRoomJoin }: { onRoomJoin?: (id: string, name: string, icon?: string) => void; }) {
     const { socket, authStatus } = useSocket();
     const { t } = useLanguage();
     const [rooms, setRooms] = useState<any[]>([]);
@@ -228,15 +224,34 @@ export function PartyRoomPage({
 
     const fetchRooms = async () => {
         try {
-            const res = await fetch('/rooms');
-            const data = await res.json();
-            setRooms(data);
+            // Firebase üzerinden odaları çek (VDS bağımlılığı kalktı)
+            const data = await pb.collection('rooms').getFullList({
+                sort: '-viewerCount',
+                expand: 'owner'
+            });
+
+            // Veriyi UI formatına dönüştür
+            const formattedRooms = data.map((r: any) => ({
+                id: r.id,
+                name: r.name || 'İsimsiz Oda',
+                ownerUid: r.ownerUid || r.owner,
+                ownerName: r.ownerName || r.expand?.owner?.username || 'Kullanıcı',
+                ownerAvatar: r.ownerAvatar || r.expand?.owner?.avatar || '',
+                viewerCount: r.viewerCount || 0,
+                seatedCount: r.seatedCount || 0,
+                maxSeatCount: r.maxSeatCount || 8,
+                boostLevel: r.boostLevel || 1,
+                followerCount: r.followerCount || 0,
+                isSleeping: r.isSleeping || false
+            }));
+
+            setRooms(formattedRooms);
 
             // Kullanıcının odası var mı kontrol et
-            const myRoom = data.find((r: any) => r.ownerUid === pb.authStore.model?.id);
+            const myRoom = formattedRooms.find((r: any) => r.ownerUid === pb.authStore.model?.id);
             setUserHasRoom(!!myRoom);
         } catch (err) {
-            console.error("Lobi Hatası:", err);
+            console.error("Lobi Hatası (Firebase):", err);
         } finally {
             setLoading(false);
         }
@@ -289,11 +304,15 @@ export function PartyRoomPage({
         if (!socket || authStatus !== 'authenticated') return alert('Bağlantı bekleniyor...');
         if (!newRoomName.trim()) return;
 
+        // Socket emülatörü üzerinden oda oluştur
         socket.emit('create_room', { name: newRoomName, seatCount });
+
+        // Oda oluşturulunca listeyi yenile ve odaya gir
         socket.once('room_created', (id: string) => {
             setShowCreateModal(false);
             setNewRoomName('');
             setSeatCount(8);
+            fetchRooms(); // Listeyi anında yenile
             if (onRoomJoin) onRoomJoin(id, newRoomName, '🎭');
         });
     };
@@ -681,29 +700,17 @@ export function PartyRoomPage({
     );
 }
 
-/* CSS for Chat Bubbles Animation */
-<style>{`
-    @keyframes popIn {
-        from { opacity: 0; transform: scale(0.9) translateY(10px); }
-        to { opacity: 1; transform: scale(1) translateY(0); }
-    }
-    .bubble-v9 { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards; }
-`}</style>
+// ==========================================
+// PartyRoomInner Component
+// ==========================================
 
 export function PartyRoomInner({ roomId, onLeave, onBack: _onBack }: { roomId: string, onLeave: () => void, onBack?: () => void }) {
     const { t, language } = useLanguage();
     const navigate = useNavigate();
-    const { socket: _socket, connect, isConnected: socketConnected, authStatus } = useSocket();
+    const { socket: _socket, isConnected: socketConnected, connect, authStatus } = useSocket();
     const { roomState, chat, isMicOn, isCameraOn, isLoading, isConnected, localStream, remoteStreams, actions } = usePartyRoom(roomId);
-    const isSeated = roomState?.seats?.some((s: any) => s && s.uid === pb.authStore.model?.id);
-    const [msg, setMsg] = useState('');
-    const [showMenu, setShowMenu] = useState(false);
-    const [showSettings, setShowSettings] = useState(false);
-    const [showChatSettings, setShowChatSettings] = useState(false);
-    const [showBlocked, setShowBlocked] = useState(false);
-    const [showRoomUsers, setShowRoomUsers] = useState(false);
-    const [showFollowers, setShowFollowers] = useState(false);
-    const [showShareModal, setShowShareModal] = useState(false);
+
+    // State'ler
     const [isAnnouncementExpanded, setIsAnnouncementExpanded] = useState(false);
     const [isEditingAnnouncement, setIsEditingAnnouncement] = useState(false);
     const [tempAnnouncement, setTempAnnouncement] = useState('');
@@ -716,14 +723,46 @@ export function PartyRoomInner({ roomId, onLeave, onBack: _onBack }: { roomId: s
     const [followers, setFollowers] = useState<any[]>([]);
     const [loadingFollowers, setLoadingFollowers] = useState(false);
     const [isInitialScroll, setIsInitialScroll] = useState(true);
-    // Custom Minimal Toast
     const [toastMsg, setToastMsg] = useState('');
-    const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const toastTimerRef = useRef<any>(null);
+    const isSeated = roomState?.seats?.some((s: any) => s && s.uid === pb.authStore.model?.id);
+    const [msg, setMsg] = useState('');
+    const [showMenu, setShowMenu] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
+    const [showChatSettings, setShowChatSettings] = useState(false);
+    const [showBlocked, setShowBlocked] = useState(false);
+    const [showRoomUsers, setShowRoomUsers] = useState(false);
+    const [showFollowers, setShowFollowers] = useState(false);
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [isFollowingRoom, setIsFollowingRoom] = useState(false);
+    const [shareMsg, setShareMsg] = useState('');
+    const [isSharing, setIsSharing] = useState(false);
 
     // Mention Suggester States
     const [mentionSearch, setMentionSearch] = useState('');
     const [showMentionSuggester, setShowMentionSuggester] = useState(false);
     const [isMediaGroupExpanded, setIsMediaGroupExpanded] = useState(false);
+
+    const isAdmin = roomState?.admins?.includes(pb.authStore.model?.id);
+    const boostLevel = roomState?.boostLevel || 1;
+    const followerCount = roomState?.followerCount || 0;
+    const nextBoostAt = roomState?.nextBoostAt || null;
+
+    // Bir sonraki boost için ilerleme yüzdesini hesapla
+    const boostProgress = nextBoostAt
+        ? Math.min(100, Math.round((followerCount / nextBoostAt) * 100))
+        : 100;
+
+    // Boost renk ve etiket
+    const BOOST_META: Record<number, { label: string; color: string; bg: string; icon: string }> = {
+        1: { label: 'Standart', color: '#818cf8', bg: 'rgba(99,102,241,0.15)', icon: '⚡' },
+        2: { label: 'Gelişmiş', color: '#60a5fa', bg: 'rgba(59,130,246,0.15)', icon: '🔥' },
+        3: { label: 'Premium', color: '#fcd34d', bg: 'rgba(245,158,11,0.15)', icon: '💥' },
+    };
+    const bm = BOOST_META[boostLevel];
+
+    const chatEndRef = useRef<HTMLDivElement>(null);
+    const [showBilgiPaneli, setShowBilgiPaneli] = useState(false);
 
     const filteredMentionUsers = roomUsers.filter(u =>
         u.isOnline && u.username.toLowerCase().includes(mentionSearch.toLowerCase())
@@ -749,41 +788,11 @@ export function PartyRoomInner({ roomId, onLeave, onBack: _onBack }: { roomId: s
         setShowMentionSuggester(false);
     };
 
-    const showToast = (msg: string) => {
-        setToastMsg(msg);
+    const showToast = (toastMsgArg: string) => {
+        setToastMsg(toastMsgArg);
         if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
         toastTimerRef.current = setTimeout(() => setToastMsg(''), 2500);
     };
-
-    // Boost yükleniyor state'i artık kullanılmıyor (otomatik sistem)
-    const chatEndRef = useRef<HTMLDivElement>(null);
-    // Oda içi BilgiPaneli (oda adına tıklayınca açılır - inroom varyantı)
-    const [showBilgiPaneli, setShowBilgiPaneli] = useState(false);
-    // Oda takıpte mi?
-    const [isFollowingRoom, setIsFollowingRoom] = useState(false);
-    // Paylaşım Modalı
-    // const [showShareModal, setShowShareModal] = useState(false); // Moved to top
-    const [shareMsg, setShareMsg] = useState('');
-    const [isSharing, setIsSharing] = useState(false);
-
-    const isAdmin = roomState?.admins?.includes(pb.authStore.model?.id);
-    const boostLevel = roomState?.boostLevel || 1;
-    const followerCount = roomState?.followerCount || 0;
-    const nextBoostAt = roomState?.nextBoostAt || null;
-
-    // Bir sonraki boost için ilerleme yüzdesini hesapla
-    const boostProgress = nextBoostAt
-        ? Math.min(100, Math.round((followerCount / nextBoostAt) * 100))
-        : 100;
-
-    // Boost renk ve etiket
-    const BOOST_META: Record<number, { label: string; color: string; bg: string; icon: string }> = {
-        1: { label: 'Standart', color: '#818cf8', bg: 'rgba(99,102,241,0.15)', icon: '⚡' },
-        2: { label: 'Gelişmiş', color: '#60a5fa', bg: 'rgba(59,130,246,0.15)', icon: '🔥' },
-        3: { label: 'Premium', color: '#fcd34d', bg: 'rgba(245,158,11,0.15)', icon: '💥' },
-    };
-    const bm = BOOST_META[boostLevel];
-
 
     // Takipçileri çek
     const fetchFollowers = async () => {
