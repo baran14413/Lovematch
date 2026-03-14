@@ -5,21 +5,18 @@ import { getStorage } from "firebase/storage";
 
 /**
  * =========================================================================
- *  LOVEMATCH - FIREBASE YAPILANDIRMASI
- *  UYARI: appId Firebase Console > Proje Ayarları > Genel > Uygulamalarınız
- *  bölümünden alınmalıdır. Şu an ortam değişkeninden okunuyor.
- *  Firebase Console: https://console.firebase.google.com/project/lovematch-67f1d
- * =========================================================================
+ *  LOVEMATCH - FIREBASE YAPILANDIRMASI (v1.6 Premium)
+ *  Proje: lovmatch-3a64b
+ *  =========================================================================
  */
 const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBn7oZw5y-HtFdsJmD9Zju-1ClDcXu9l2c",
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "lovematch-67f1d.firebaseapp.com",
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "lovematch-67f1d",
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "lovematch-67f1d.firebasestorage.app",
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "555856494313",
-    // ÖNEMLİ: Bu değeri Firebase Console'dan al!
-    // Console > Proje Genel Bakış > Web uygulaması (</>) > appId
-    appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:555856494313:web:dd4a7b3fb1a3b2c5lovematch",
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCFK38JMSkacWY5PG4VqtJF9O2DoJEC35I",
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "lovmatch-3a64b.firebaseapp.com",
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "lovmatch-3a64b",
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "lovmatch-3a64b.firebasestorage.app",
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "1048746473980",
+    appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:1048746473980:web:c2827ef1aa29b6dc5fda79",
+    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-47QR7639RK"
 };
 
 // Zaten başlatılmışsa tekrar başlatma (HMR uyumluluğu)

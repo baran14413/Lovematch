@@ -166,50 +166,54 @@ class CollectionAdapter {
     // Kayıt oluştur (FormData veya düz obje kabul eder)
     async create(data: any) {
         let payload: Record<string, any> = {};
+        const files: Record<string, File> = {};
 
+        // 1. Veriyi ayrıştır (Field vs File)
         if (data instanceof FormData) {
-            // FormData → Storage yükle → Firestore'a yaz
-            const result = await formDataToPayload(
-                data,
-                `${this.name}` // örn: "users"
-            );
-            payload = result.payload;
+            data.forEach((val, key) => {
+                if (val instanceof File && val.size > 0) {
+                    files[key] = val;
+                } else {
+                    payload[key] = val;
+                }
+            });
         } else {
-            // Düz obje ama yine de File nesnelerini temizle
             for (const [key, val] of Object.entries(data)) {
-                if (val instanceof File) {
-                    if (val.size > 0) {
-                        const ext = val.name.split('.').pop() || 'bin';
-                        const path = `${this.name}/${key}_${Date.now()}.${ext}`;
-                        payload[key] = await uploadFileToStorage(path, val);
-                    }
-                    // Boyutu 0 olan File nesnelerini atla
+                if (val instanceof File && val.size > 0) {
+                    files[key] = val;
                 } else {
                     payload[key] = val;
                 }
             }
         }
 
-        // Kullanıcı kaydı - Firebase Auth + Firestore
+        // 2. KULLANICI KAYDI ÖZEL DURUMU
         if (this.name === 'users' && payload.email && payload.password) {
             const { email, password, passwordConfirm, ...rest } = payload;
-            // passwordConfirm Firestore'a yazılmıyor (sadece doğrulama için)
 
+            // Önce kullanıcıyı oluştur (bu işlem otomatik giriş yaptırır)
             const res = await createUserWithEmailAndPassword(auth, email, password);
+            const uid = res.user.uid;
 
-            // Profil güncelle (displayName)
-            if (rest.username) {
-                await updateProfile(res.user, { displayName: rest.username });
+            // Dosyaları şimdi yükle (Artık auth.uid var ve yol kurala uyuyor)
+            // Yol formatı: users/{userId}/{fileKey}_{timestamp}.{ext}
+            for (const [key, file] of Object.entries(files)) {
+                const ext = file.name.split('.').pop() || 'jpg';
+                const path = `users/${uid}/${key}_${Date.now()}.${ext}`;
+                rest[key] = await uploadFileToStorage(path, file);
             }
 
-            // avatar URL varsa photoURL olarak da kaydet
+            // Profil güncelle (displayName ve photoURL)
+            if (rest.username) {
+                await updateProfile(res.user, { displayName: String(rest.username) });
+            }
             if (rest.avatar && typeof rest.avatar === 'string') {
                 await updateProfile(res.user, { photoURL: rest.avatar });
             }
 
             // Firestore'a kullanıcı belgesi oluştur
-            await setDoc(doc(db, "users", res.user.uid), {
-                uid: res.user.uid,
+            await setDoc(doc(db, "users", uid), {
+                uid,
                 email,
                 username: rest.username || email.split('@')[0],
                 ...rest,
@@ -217,10 +221,17 @@ class CollectionAdapter {
                 updated: serverTimestamp()
             });
 
-            return { id: res.user.uid, email, ...rest };
+            return { id: uid, email, ...rest };
         }
 
-        // Diğer koleksiyonlar
+        // 3. DİĞER KOLEKSİYONLAR
+        // (Oturum açık olmalı, yoksa hata verir)
+        for (const [key, file] of Object.entries(files)) {
+            const ext = file.name.split('.').pop() || 'jpg';
+            const path = `${this.name}/${key}_${Date.now()}.${ext}`;
+            payload[key] = await uploadFileToStorage(path, file);
+        }
+
         const docRef = await addDoc(collection(db, this.name), {
             ...payload,
             created: serverTimestamp(),
