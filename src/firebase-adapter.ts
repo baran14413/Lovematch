@@ -177,12 +177,23 @@ class CollectionAdapter {
 
 class PBAdapter {
     authStore: any;
+    // Firebase auth durumunun hazır olup olmadığını takip eder
+    isAuthReady: boolean = false;
+    // Auth hazır olunca resolve olan promise (siyah ekranı önler)
+    authReadyPromise: Promise<void>;
+    private resolveAuthReady!: () => void;
     private callbacks: Array<(token: string, model: any) => void> = [];
 
     constructor() {
+        // Auth ready promise'i başlat
+        this.authReadyPromise = new Promise(resolve => {
+            this.resolveAuthReady = resolve;
+        });
+
         this.authStore = {
             model: null,
             clear: () => {
+                // Firebase'den çıkış yap
                 signOut(auth);
                 this.authStore.model = null;
                 this.triggerChange();
@@ -193,6 +204,7 @@ class PBAdapter {
             },
             onChange: (callback: (token: string, model: any) => void, fireImmediately = false) => {
                 this.callbacks.push(callback);
+                // fireImmediately ile hemen tetikle
                 if (fireImmediately) callback("firebase-token", this.authStore.model);
                 return () => {
                     this.callbacks = this.callbacks.filter(c => c !== callback);
@@ -200,18 +212,44 @@ class PBAdapter {
             }
         };
 
+        // Firebase auth state değişikliklerini dinle
         onAuthStateChanged(auth, async (user: User | null) => {
             if (user) {
-                const userDoc = await getDoc(doc(db, "users", user.uid));
-                this.authStore.model = {
-                    id: user.uid,
-                    email: user.email,
-                    username: user.displayName,
-                    ...userDoc.data()
-                };
+                try {
+                    // Kullanıcı Firestore'dan yükle
+                    const userDoc = await getDoc(doc(db, "users", user.uid));
+                    const userData = userDoc.exists() ? userDoc.data() : {
+                        username: user.displayName || user.email?.split('@')[0] || 'Kullanıcı',
+                        coins: 0,
+                        level: 1,
+                        isVIP: false
+                    };
+                    this.authStore.model = {
+                        id: user.uid,
+                        email: user.email,
+                        username: user.displayName || userData.username,
+                        ...userData
+                    };
+                } catch (e) {
+                    // Firestore erişim hatası olsa bile auth modelini kur
+                    console.warn('[Firebase] Kullanıcı dokümanı yüklenemedi:', e);
+                    this.authStore.model = {
+                        id: user.uid,
+                        email: user.email,
+                        username: user.displayName || user.email?.split('@')[0] || 'Kullanıcı',
+                    };
+                }
             } else {
+                // Oturum açık değil
                 this.authStore.model = null;
             }
+
+            // Auth artık hazır - siyah ekran biter!
+            if (!this.isAuthReady) {
+                this.isAuthReady = true;
+                this.resolveAuthReady();
+            }
+
             this.triggerChange();
         });
     }

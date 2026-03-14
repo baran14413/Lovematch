@@ -1,6 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-// @ts-ignore
-import OneSignal from 'onesignal-cordova-plugin';
+// OneSignal sadece Capacitor/Native ortamda çalışır, web'de import edilirse çöküyor!
+// Bu yüzden window.Capacitor varlığına göre runtime'da kontrol ediyoruz
+// @ts-ignore - OneSignal native plugin, web'de mevcut olmayabilir, runtime kontrolü var
+let OneSignal: any = null;
+// Güvenli init: sadece native Capacitor ortamında yükle
+(async () => {
+    try {
+        if (typeof window !== 'undefined' && 'Capacitor' in window) {
+            const mod = await import('onesignal-cordova-plugin');
+            OneSignal = mod.default;
+        }
+    } catch (e) {
+        // Web ortamında OneSignal yoksa sessizce geç - uygulama çöküyor yoksa!
+        console.warn('[OneSignal] Native plugin web ortamında mevcut değil (normal)');
+    }
+})();
 import { SocketProvider, useSocket } from './context/SocketContext';
 import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import {
@@ -580,12 +594,38 @@ function AppInner() {
     const { socket } = useSocket();
     const [showSplash, setShowSplash] = useState(true);
     const [user, setUser] = useState<any>(pb.authStore.model);
+    // Firebase auth hazır mı? Hazır olmadan ekran gösterme - SİYAH EKRANI ÖNLER!
+    const [authLoading, setAuthLoading] = useState(!pb.isAuthReady);
     const [updateAvailable, setUpdateAvailable] = useState(false);
     const [updating, setUpdating] = useState(false);
     const [updateProgress, setUpdateProgress] = useState(0);
 
+    // Firebase auth'un yüklenmesini bekle - bu olmadan siyah ekran olur!
     useEffect(() => {
-        // OneSignal Initialization
+        if (pb.isAuthReady) {
+            // Zaten hazır, hemen devam et
+            setAuthLoading(false);
+            return;
+        }
+        // Auth henüz hazır değil, promise tamamlanınca devam et
+        pb.authReadyPromise.then(() => {
+            setAuthLoading(false);
+            setUser(pb.authStore.model);
+        }).catch(() => {
+            // Hata olsa bile uygulamayı göster (siyah ekranda kalmasın)
+            console.warn('[App] Firebase auth bekleme hatası - yine de devam ediliyor');
+            setAuthLoading(false);
+        });
+        // Max 5 saniye bekle, sonra zorla devam et
+        const timeout = setTimeout(() => {
+            console.warn('[App] Firebase auth timeout - zorla devam ediliyor');
+            setAuthLoading(false);
+        }, 5000);
+        return () => clearTimeout(timeout);
+    }, []);
+
+    useEffect(() => {
+        // OneSignal Bildirim Servisi Başlatma
         try {
             if (OneSignal && typeof OneSignal.initialize === 'function') {
                 OneSignal.initialize("dac0906c-e76a-46d4-bf59-4702ddc2cf70");
@@ -593,7 +633,7 @@ function AppInner() {
                     OneSignal.Notifications.requestPermission(true);
                 }
             } else {
-                console.warn("OneSignal is not available or properly loaded on this platform.");
+                console.warn("OneSignal bu platformda mevcut değil.");
             }
         } catch (e) {
             console.error("OneSignal Init Warning (Non-Fatal):", e);
@@ -603,10 +643,10 @@ function AppInner() {
         StoreService.init();
         setImmersiveMode();
 
-        // Global DM Bildirimleri
+        // Global DM Bildirimleri - socket bağlantısı varsa
         if (socket) {
             const handleReceiveDM = (data: any) => {
-                // Eğer zaten chat sayfasında ve o kişiyle konuşuyorsa bildirim atma
+                // Zaten o kişiyle chat sayfasındaysa bildirim gösterme
                 const isChatPage = window.location.hash.includes('/chat');
                 const chatParams = new URLSearchParams(window.location.search);
                 const activeChatUserId = chatParams.get('userId');
@@ -622,19 +662,26 @@ function AppInner() {
         }
     }, [socket]);
 
-    // OneSignal User Login/Logout
+    // OneSignal User Login/Logout - kullanıcı durumuna göre
     useEffect(() => {
-        if (user && user.id) {
-            OneSignal.login(user.id);
-        } else {
-            OneSignal.logout();
+        try {
+            if (OneSignal && typeof OneSignal.login === 'function') {
+                if (user && user.id) {
+                    OneSignal.login(user.id);
+                } else if (typeof OneSignal.logout === 'function') {
+                    OneSignal.logout();
+                }
+            }
+        } catch (e) {
+            console.error(e);
         }
     }, [user]);
 
     useEffect(() => {
+        // Güncelleme kontrolü ve auth değişiklik dinleyicisi
         const checkUpdate = async () => {
             try {
-                const res = await fetch(`https://lovemtch.shop/version.json?t=${Date.now()}`);
+                const res = await fetch(`/version.json?t=${Date.now()}`);
                 const data = await res.json();
                 // @ts-ignore
                 if (data.build > CURRENT_BUILD) {
@@ -645,22 +692,25 @@ function AppInner() {
         };
         checkUpdate();
 
+        // Auth değişikliklerini dinle (giriş/çıkış)
         const unbind = pb.authStore.onChange((_: string, model: any) => setUser(model), true);
         return () => {
             unbind();
         };
     }, []);
 
-    // Socket Event Listeners
+    // Socket event listener'ları
     useEffect(() => {
         if (!socket) return;
 
+        // Sistem bildirimleri (admin'den gelen)
         socket.on('system_notification', (notif: any) => {
             if (notif.title && notif.body) {
                 NotificationService.show(notif.title, notif.body, notif.data);
             }
         });
 
+        // Admin yayın mesajları
         socket.on('admin_broadcast', (data: any) => {
             if (data.message) {
                 NotificationService.show(
@@ -671,16 +721,16 @@ function AppInner() {
             }
         });
 
+        // Arkadaşlık isteği bildirimi
         socket.on('friend_request_received', (data: any) => {
             NotificationService.notifyFriendRequest(data.fromName || 'Birisi');
         });
 
+        // Global DM bildirimleri
         const handleGlobalDM = (data: any) => {
-            // Eğer mesajı gönderen biz değilsek (yani alıcıysak)
+            // Kendi gönderdiğimiz mesajı bildirme
             if (data.senderId !== pb.authStore.model?.id) {
-                // Eğer şu an o kişiyle sohbet etmiyorsak bildirim göster
                 const isChattingWithSender = window.location.hash.includes('/chat') && window.location.search.includes(data.senderId);
-
                 if (!isChattingWithSender) {
                     NotificationService.notifyMessage(data.username, data.text);
                 }
@@ -711,6 +761,12 @@ function AppInner() {
         }, 200);
     };
 
+    // Firebase auth yüklenirken splash ekranı göster (siyah ekran yerine)
+    if (authLoading || showSplash) return <Splash onDone={() => {
+        // Sadece auth hazırsa splash'i kapat
+        if (!authLoading) setShowSplash(false);
+    }} />;
+
     if (updating) return (
         <div className="splash" style={{ background: '#05070a' }}>
             <div style={{ textAlign: 'center', zIndex: 10 }}>
@@ -733,8 +789,6 @@ function AppInner() {
             </div>
         </div>
     );
-
-    if (showSplash) return <Splash onDone={() => setShowSplash(false)} />;
 
     return (
         <BrowserRouter>

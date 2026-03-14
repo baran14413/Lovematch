@@ -23,10 +23,10 @@ async function migrate() {
     console.log("🚀 Göç işlemi başlatılıyor...");
 
     try {
-        await pb.admins.authWithPassword('admin@lovematch.com', 'lovematchadmin123');
+        await pb.collection('_superusers').authWithPassword('temp_admin@lovematch.com', 'admin123456');
         console.log("✅ PocketBase admin girişi başarılı.");
     } catch (e) {
-        console.error("❌ PocketBase girişi başarısız! Lütfen şifreyi kontrol edin.");
+        console.error("❌ PocketBase girişi başarısız! Hata:", e.message);
         return;
     }
 
@@ -35,22 +35,6 @@ async function migrate() {
     try {
         const users = await pb.collection('users').getFullList();
         for (const u of users) {
-            console.log(`> İşleniyor: ${u.username} (${u.email})`);
-
-            // Firebase Auth'ta kullanıcı var mı?
-            let firebaseUser;
-            try {
-                firebaseUser = await auth.getUserByEmail(u.email);
-            } catch (e) {
-                // Yoksa oluştur (Şifreler PB'den ham alınamadığı için geçici şifre veriyoruz)
-                firebaseUser = await auth.createUser({
-                    uid: u.id, // ID uyumluluğu için aynısını kullanıyoruz
-                    email: u.email,
-                    displayName: u.username || u.name,
-                    password: 'LoveMatch123!', // Geçici şifre (Kullanıcı sıfırlamalı)
-                });
-            }
-
             // Firestore user profilini kaydet/güncelle
             await db.collection('users').doc(u.id).set({
                 uid: u.id,
@@ -63,19 +47,22 @@ async function migrate() {
                 isVIP: u.isVIP || false,
                 color: u.color || '#8b5cf6',
                 bubbleStyle: u.bubbleStyle || 'classic',
-                createdAt: admin.firestore.FieldValue.serverTimestamp()
+                followers: u.followers || [],
+                following: u.following || [],
+                created: u.created || admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
+            console.log(`✅ ${u.username} taşındı.`);
         }
     } catch (e) {
         console.error("[-] Kullanıcı göçü hatası:", e.message);
     }
+    // ... (Oda ve Post taşıma kısımları aynen kalabilir veya benzeri eklenebilir)
 
     // 2. ODALARI TAŞI
     console.log("\n--- 🎙️ Odalar Taşınıyor ---");
     try {
         const rooms = await pb.collection('rooms').getFullList();
         for (const r of rooms) {
-            console.log(`> Oda: ${r.name}`);
             await db.collection('rooms').doc(r.id).set({
                 id: r.id,
                 name: r.name,
@@ -85,8 +72,10 @@ async function migrate() {
                 maxSeatCount: r.maxSeatCount || 8,
                 announcement: r.announcement || "",
                 backgroundUrl: r.background ? `${PB_URL}/api/files/rooms/${r.id}/${r.background}` : null,
-                createdAt: r.created ? new Date(r.created) : admin.firestore.FieldValue.serverTimestamp()
-            });
+                isPrivate: r.isPrivate || false,
+                created: r.created || admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+            console.log(`✅ Oda ${r.name} taşındı.`);
         }
     } catch (e) {
         console.error("[-] Oda göçü hatası:", e.message);
@@ -97,15 +86,15 @@ async function migrate() {
     try {
         const posts = await pb.collection('posts').getFullList();
         for (const p of posts) {
-            console.log(`> Post: ${p.id} (Yazar: ${p.author})`);
             await db.collection('posts').doc(p.id).set({
                 author: p.author,
                 content: p.content,
                 likes: p.likes || [],
                 comments: p.comments || [],
                 imageUrl: p.image ? `${PB_URL}/api/files/posts/${p.id}/${p.image}` : null,
-                createdAt: p.created ? new Date(p.created) : admin.firestore.FieldValue.serverTimestamp()
-            });
+                created: p.created || admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+            console.log(`✅ Post ${p.id} taşındı.`);
         }
     } catch (e) {
         console.error("[-] Post göçü hatası:", e.message);
