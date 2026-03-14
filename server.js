@@ -232,61 +232,55 @@ class Room {
 }
 
 /* ═══════════════════════════════════════════════════════════
- *  ROOM PERSISTENCE — PocketBase Birincil + JSON Yedek
- *  Odalar PocketBase veritabanına kaydedilir.
+ *  ROOM PERSISTENCE — Firebase Firestore Birincil + JSON Yedek
+ *  Odalar Firestore veritabanına kaydedilir.
  *  JSON dosyası sadece yedek (fallback) olarak tutulur.
  * ═══════════════════════════════════════════════════════════ */
-import PocketBase from 'pocketbase';
+import { initializeApp } from "firebase/app";
+import {
+    getFirestore, collection, doc, getDoc, setDoc, getDocs,
+    deleteDoc, query, orderBy, serverTimestamp
+} from "firebase/firestore";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
+const firebaseConfig = {
+    apiKey: process.env.VITE_FIREBASE_API_KEY || "AIzaSyCFK38JMSkacWY5PG4VqtJF9O2DoJEC35I",
+    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || "lovmatch-3a64b.firebaseapp.com",
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID || "lovmatch-3a64b",
+    storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || "lovmatch-3a64b.firebasestorage.app",
+    messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "1048746473980",
+    appId: process.env.VITE_FIREBASE_APP_ID || "1:1048746473980:web:c2827ef1aa29b6dc5fda79",
+    measurementId: process.env.VITE_FIREBASE_MEASUREMENT_ID || "G-47QR7639RK"
+};
 
 const ROOMS_FILE = path.join(__dirname, 'rooms_backup.json');
-const PB_URL = 'http://127.0.0.1:8090';
-const pbAdmin = new PocketBase(PB_URL);
-let pbReady = false; // PocketBase bağlantı durumu
 
-// ─── PocketBase Bağlantısı ve Koleksiyon Kontrolü ───
-async function initPocketBase() {
-    try {
-        console.log('[PB] 🔄 PocketBase bağlantısı deneniyor...');
-        // Admin olarak giriş yap
-        await pbAdmin.collection('_superusers').authWithPassword(
-            'emirhandesdemir@gmail.com',
-            'Gunahbenim09'
-        ).catch(e => {
-            console.warn('[PB] ⚠️ Admin girişi başarısız, çevrimdışı modda devam ediliyor.');
-        });
+// Initialize Firebase
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
+const storage = getStorage(firebaseApp);
 
-        if (pbAdmin.authStore.isValid) {
-            console.log('[PB] ✅ PocketBase admin girişi başarılı');
-            pbReady = true;
+let firebaseReady = true; // Firebase SDK usually manages its own connection state
 
-            // rooms koleksiyonu kontrolü
-            try {
-                await pbAdmin.collections.getOne('rooms');
-                console.log('[PB] ✅ rooms koleksiyonu mevcut');
-            } catch (e) {
-                console.log('[PB] 🔧 rooms koleksiyonu bulunamadı (Migrasyon modunda otomatik oluşturma atlandı)');
-            }
-        }
-    } catch (e) {
-        console.error('[PB] ❌ PocketBase başlatma hatası:', e.message);
-        pbReady = false;
-    }
+// ─── Firebase Durum Kontrolü ───
+async function checkFirebaseHealth() {
+    return firebaseReady;
 }
 
-async function checkPBHealth() {
-    return pbReady;
-}
-
-// ─── PocketBase'den Odaları Yükle ───
-async function loadRoomsFromPB() {
-    if (!pbReady) return false;
+// ─── Firestore'dan Odaları Yükle ───
+async function loadRoomsFromFirestore() {
+    if (!firebaseReady) return false;
     try {
-        const records = await pbAdmin.collection('rooms').getFullList({ sort: '-created' });
-        if (records.length === 0) return false;
+        const q = query(collection(db, "rooms"), orderBy("roomCreatedAt", "desc"));
+        const snap = await getDocs(q);
+        if (snap.empty) return false;
 
-        records.forEach(r => {
-            if (rooms.has(r.roomId)) return; // Zaten yüklenmişse atla
-            const newRoom = new Room(r.roomId, r.name, r.ownerUid, r.ownerName || '', r.ownerAvatar || '', r.maxSeatCount || 8);
+        snap.forEach(docSnap => {
+            const r = docSnap.data();
+            const rid = docSnap.id;
+            if (rooms.has(rid)) return; // Zaten yüklenmişse atla
+
+            const newRoom = new Room(rid, r.name, r.ownerUid, r.ownerName || '', r.ownerAvatar || '', r.maxSeatCount || 8);
             newRoom.admins = new Set(r.admins || [r.ownerUid]);
             newRoom.mutedUsers = new Set(r.mutedUsers || []);
             newRoom.blockedUsers = new Set(r.blockedUsers || []);
@@ -298,76 +292,63 @@ async function loadRoomsFromPB() {
             newRoom.slowMode = r.slowMode || false;
             newRoom.chatDisabled = r.chatDisabled || false;
             if (r.followers && Array.isArray(r.followers)) {
-                newRoom.followers = new Map(r.followers);
+                newRoom.followers = new Map(r.followers.map(f => [f.uid, f]));
             }
-            if (r.lockedSeats) {
-                newRoom.lockedSeats = r.lockedSeats;
-            }
-            newRoom.updateBoostFromFollowers();
-            rooms.set(r.roomId, newRoom);
+            if (r.lockedSeats) newRoom.lockedSeats = r.lockedSeats;
+            rooms.set(rid, newRoom);
         });
-        console.log(`[PB] ✅ PocketBase'den ${records.length} oda yüklendi.`);
+        console.log(`[FIRESTORE] ${snap.size} oda başarıyla yüklendi.`);
         return true;
     } catch (e) {
-        console.error('[PB] ❌ Oda yükleme hatası:', e.message);
+        console.error('[FIRESTORE] Odalar yüklenirken hata:', e.message);
         return false;
     }
 }
-
-// ─── PocketBase'e Tek Bir Odayı Kaydet/Güncelle ───
-async function saveRoomToPB(room) {
-    if (!pbReady) return;
+// ─── Firestore'a Tek Oda Kaydet/Güncelle ───
+async function saveRoomToFirestore(room) {
+    if (!firebaseReady) return;
     try {
         const data = {
-            roomId: room.id,
             name: room.name,
             ownerUid: room.ownerUid,
             ownerName: room.ownerName,
             ownerAvatar: room.ownerAvatar,
-            maxSeatCount: room.maxSeatCount,
-            boostLevel: room.boostLevel,
-            isSleeping: room.isSleeping,
             admins: Array.from(room.admins),
             mutedUsers: Array.from(room.mutedUsers),
             blockedUsers: Array.from(room.blockedUsers),
-            followers: Array.from(room.followers.entries()),
-            lockedSeats: room.lockedSeats,
             layout: room.layout,
             roomCreatedAt: room.createdAt,
+            isSleeping: room.isSleeping,
+            boostLevel: room.boostLevel,
+            maxSeatCount: room.maxSeatCount,
             announcement: room.announcement,
             slowMode: room.slowMode,
             chatDisabled: room.chatDisabled,
+            followers: Array.from(room.followers.values()),
+            lockedSeats: room.lockedSeats,
+            updated: serverTimestamp()
         };
-
-        // Mevcut kaydı bul
-        try {
-            const existing = await pbAdmin.collection('rooms').getFirstListItem(`roomId="${room.id}"`);
-            await pbAdmin.collection('rooms').update(existing.id, data);
-        } catch {
-            // Kayıt yoksa yeni oluştur
-            await pbAdmin.collection('rooms').create(data);
-        }
+        await setDoc(doc(db, "rooms", room.id), data, { merge: true });
     } catch (e) {
-        console.error(`[PB] ❌ Oda kaydetme hatası (${room.id}):`, e.message);
+        console.error(`[FIRESTORE] Oda kaydedilemedi (${room.name}):`, e.message);
     }
 }
 
-// ─── PocketBase'den Tek Bir Odayı Sil ───
-async function deleteRoomFromPB(roomId) {
-    if (!pbReady) return;
+// ─── Firestore'dan Oda Sil ───
+async function deleteRoomFromFirestore(roomId) {
+    if (!firebaseReady) return;
     try {
-        const existing = await pbAdmin.collection('rooms').getFirstListItem(`roomId="${roomId}"`);
-        await pbAdmin.collection('rooms').delete(existing.id);
-        console.log(`[PB] 🗑️ Oda PB'den silindi: ${roomId}`);
+        await deleteDoc(doc(db, "rooms", roomId));
+        console.log(`[FIRESTORE] Oda silindi: ${roomId}`);
     } catch (e) {
-        // Kayıt bulunamadıysa sorun değil
+        console.error(`[FIRESTORE] Oda silinemedi:`, e.message);
     }
 }
 
 // ─── JSON Yedek Kaydetme (Eski sistem — fallback) ───
 function saveRoomsToFile() {
     try {
-        const roomsData = Array.from(rooms.entries()).map(([id, room]) => ({
+        const roomsData = Array.from(rooms.values()).map(room => ({
             id: room.id, name: room.name, ownerUid: room.ownerUid,
             ownerName: room.ownerName, ownerAvatar: room.ownerAvatar,
             maxSeatCount: room.maxSeatCount, admins: Array.from(room.admins),
@@ -412,23 +393,21 @@ function loadRoomsFromFile() {
     }
 }
 
-// ─── Başlangıç: PocketBase önce, JSON yedek ───
+// ─── Başlangıç: Firestore önce, JSON yedek ───
 (async () => {
-    await initPocketBase();
-    const loadedFromPB = await loadRoomsFromPB();
-    if (!loadedFromPB) {
-        console.log('[ROOM] PB yüklenemedi, JSON yedekten yükleniyor...');
+    const loadedFromFirestore = await loadRoomsFromFirestore();
+    if (!loadedFromFirestore) {
+        console.log('[ROOM] Firestore yüklenemedi, JSON yedekten yükleniyor...');
         loadRoomsFromFile();
     }
 })();
 
-// ─── Periyodik kayıt: Hem PB hem JSON (her 15 saniye) ───
+// ─── Periyodik kayıt: Hem Firestore hem JSON (her 15 saniye) ───
 setInterval(async () => {
     saveRoomsToFile(); // JSON yedek her zaman güncellenir
-    // PocketBase'e toplu güncelleme (sadece PB hazırsa)
-    if (pbReady) {
+    if (firebaseReady) {
         for (const room of rooms.values()) {
-            await saveRoomToPB(room);
+            await saveRoomToFirestore(room);
         }
     }
 }, 15000);
@@ -969,7 +948,7 @@ io.on('connection', (socket) => {
     });
 
     // ─── ODA ARKA PLAN RESMİ YÜKLEME ───
-    // İstemciden base64 formatında gelir, sunucu PocketBase'e kayıt eder
+    // İstemciden base64 formatında gelir, sunucu Firebase Storage'a kayıt eder
     socket.on('update_room_background', async (data) => {
         const user = users.get(socket.id);
         if (!user || !user.currentRoomId) return socket.emit('err', 'Odada değilsiniz.');
@@ -987,26 +966,24 @@ io.on('connection', (socket) => {
             // Dosya adı ve uzantı belirle
             const ext = (data.mimeType || 'image/jpeg').split('/')[1] || 'jpg';
             const filename = `bg_${room.id}_${Date.now()}.${ext}`;
+            const storagePath = `rooms/${room.id}/${filename}`;
 
-            // Blob oluştur ve FormData'ya ekle (node.js form-data benzeri)
-            if (pbReady) {
-                const { Blob, FormData } = await import('node:buffer').then(m => ({ Blob: m.Blob, FormData: global.FormData }));
-                const blob = new global.Blob([buffer], { type: data.mimeType || 'image/jpeg' });
-                const formData = new global.FormData();
-                formData.append('background', blob, filename);
+            if (firebaseReady) {
+                const storageRef = ref(storage, storagePath);
+                const metadata = { contentType: data.mimeType || 'image/jpeg' };
 
-                await pb.collection('rooms').update(room.id, formData);
-                console.log(`[BG] Arka plan güncellendi: ${room.name}`);
-
-                // PocketBase'den güncel URL al
-                const updated = await pb.collection('rooms').getOne(room.id);
-                const bgUrl = updated.background ? pb.files.getUrl(updated, updated.background) : null;
+                await uploadBytes(storageRef, buffer, metadata);
+                const bgUrl = await getDownloadURL(storageRef);
 
                 if (bgUrl) {
                     room.backgroundUrl = bgUrl;
                     // Odadaki herkese yeni arka planı bildir
                     io.to(room.id).emit('room_background_updated', { url: bgUrl });
                     socket.emit('bg_upload_ok', { url: bgUrl });
+
+                    // Firestore'a kaydet (URL bilgisi ile)
+                    await saveRoomToFirestore(room);
+                    console.log(`[STORAGE] Arka plan yüklendi ve Firestore güncellendi: ${room.name}`);
                 }
             } else {
                 socket.emit('err', 'Veritabanı hazır değil, lütfen bekleyip tekrar deneyin.');

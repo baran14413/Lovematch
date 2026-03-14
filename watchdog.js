@@ -53,17 +53,6 @@ async function isHttpOk(url) {
 
 // ==================== SERVİS TANIMLARI ====================
 const SERVICES = {
-    pocketbase: {
-        name: 'PocketBase',
-        color: C.blue,
-        cmd: join(__dirname, 'pocketbase', 'pocketbase.exe'),
-        args: ['serve', '--http=0.0.0.0:8090'],
-        cwd: join(__dirname, 'pocketbase'),
-        healthUrl: 'https://lovemtch.shop/api/',
-        restartDelay: 2000,
-        maxRestarts: 10,
-        enabled: true,
-    },
     backend: {
         name: 'Backend (Node.js)',
         color: C.green,
@@ -133,27 +122,6 @@ function startService(key) {
 
     log(svc.color, svc.name, `🚀 Başlatılıyor... (Restart #${st.restartCount})`);
 
-    // PocketBase binary yoksa skip
-    if (key === 'pocketbase' && !existsSync(svc.cmd)) {
-        log(C.yellow, svc.name, '⚠️  Bulunamadı, atlanıyor: ' + svc.cmd);
-        st.status = 'stopped';
-        return;
-    }
-
-    if (key === 'pocketbase') {
-        isHttpOk('http://127.0.0.1:8090/api/health').then((ok) => {
-            if (ok) {
-                st.status = 'running';
-                st.process = null;
-                st.pid = null;
-                log(C.yellow, svc.name, '⚠️  PocketBase zaten çalışıyor görünüyor (8090). Başlatma atlandı.');
-                return;
-            }
-
-            startPocketBaseProcess();
-        });
-        return;
-    }
 
     if (key === 'backend') {
         Promise.all([
@@ -279,59 +247,6 @@ function spawnServiceProcess(key) {
     }
 }
 
-function startPocketBaseProcess() {
-    const key = 'pocketbase';
-    const svc = SERVICES[key];
-    const st = state[key];
-
-    try {
-        const proc = spawn(svc.cmd, svc.args, {
-            cwd: svc.cwd,
-            stdio: ['ignore', 'pipe', 'pipe'],
-            shell: false,
-            windowsHide: true,
-        });
-
-        st.process = proc;
-        st.pid = proc.pid;
-        st.status = 'running';
-
-        proc.stdout?.on('data', d => {
-            const line = d.toString().trim();
-            if (!line) return;
-            log(svc.color, svc.name, line);
-        });
-
-        proc.stderr?.on('data', d => {
-            const line = d.toString().trim();
-            if (!line || line.includes('ExperimentalWarning')) return;
-            log(C.yellow, svc.name + '·ERR', line);
-        });
-
-        proc.on('exit', (code) => {
-            st.process = null;
-            st.pid = null;
-
-            if (st.intentionalStop) {
-                st.status = 'stopped';
-                log(svc.color, svc.name, '🛑 İstemli olarak durduruldu.');
-                return;
-            }
-
-            st.status = 'crashed';
-            st.restartCount++;
-            log(C.yellow, svc.name, `🔄 Durdu (kod: ${code}) → Yeniden başlatılıyor...`);
-            setTimeout(() => startService(key), svc.restartDelay);
-        });
-
-        log(svc.color, svc.name, `✅ Çalışıyor (PID: ${proc.pid})`);
-    } catch (err) {
-        log(C.red, svc.name, `❌ Başlatma hatası: ${err.message}`);
-        st.status = 'crashed';
-        st.restartCount++;
-        setTimeout(() => startService(key), svc.restartDelay * 2);
-    }
-}
 
 // ==================== SERVİSİ DURDUR & YENİDEN BAŞLAT ====================
 function stopService(key, cb) {
@@ -393,14 +308,11 @@ const watchdogServer = createServer((req, res) => {
     // Restart komutları
     if (req.method === 'POST') {
         if (url === '/watchdog/restart/backend') { restartService('backend'); return res.end(JSON.stringify({ ok: true })); }
-        if (url === '/watchdog/restart/pocketbase') { restartService('pocketbase'); return res.end(JSON.stringify({ ok: true })); }
-        if (url === '/watchdog/restart/frontend') { restartService('frontend'); return res.end(JSON.stringify({ ok: true })); }
-        if (url === '/watchdog/restart/caddy') { restartService('caddy'); return res.end(JSON.stringify({ ok: true })); }
         if (url === '/watchdog/restart/all') {
-            ['backend', 'frontend', 'pocketbase', 'caddy'].forEach((k, i) => {
+            ['backend', 'frontend', 'caddy'].forEach((k, i) => {
                 setTimeout(() => restartService(k), i * 2000);
             });
-            return res.end(JSON.stringify({ ok: true, message: 'Tüm servisler sırayla yeniden başlatılıyor' }));
+            return res.end(JSON.stringify({ ok: true, message: 'Fonktsiyonel servisler sırayla yeniden başlatılıyor' }));
         }
     }
 
@@ -437,10 +349,9 @@ function startAll() {
     console.log(`${C.reset}\n`);
 
     // Sırayla başlat
-    startService('pocketbase');
-    setTimeout(() => startService('backend'), 3000);
-    setTimeout(() => startService('frontend'), 5000);
-    setTimeout(() => startService('caddy'), 7000);
+    startService('backend');
+    setTimeout(() => startService('frontend'), 3000);
+    setTimeout(() => startService('caddy'), 5000);
 }
 
 // ==================== GÜVENLİ KAPATMA ====================

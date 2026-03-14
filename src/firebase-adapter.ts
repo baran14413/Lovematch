@@ -108,13 +108,62 @@ class CollectionAdapter {
         return res;
     }
 
+    // Yardımcı: İlişkili kayıtları yükle (PocketBase 'expand' simülasyonu)
+    private async expandRecords(items: any[], expandPath: string | undefined) {
+        if (!expandPath) return;
+        const paths = expandPath.split(',').map(p => p.trim());
+        const collectionMap: Record<string, string> = {
+            'author': 'users',
+            'user': 'users',
+            'owner': 'users',
+            'members': 'users',
+            'room': 'rooms',
+            'to_user': 'users',
+            'from_user': 'users'
+        };
+
+        const cache = new Map<string, any>();
+
+        for (const item of items) {
+            item.expand = item.expand || {};
+            for (const path of paths) {
+                const relatedId = item[path];
+                if (relatedId && typeof relatedId === 'string') {
+                    const targetColl = collectionMap[path] || path;
+                    const cacheKey = `${targetColl}:${relatedId}`;
+
+                    if (cache.has(cacheKey)) {
+                        item.expand[path] = cache.get(cacheKey);
+                    } else {
+                        try {
+                            const docRef = doc(db, targetColl, relatedId);
+                            const docSnap = await getDoc(docRef);
+                            if (docSnap.exists()) {
+                                const data = { id: docSnap.id, ...docSnap.data() };
+                                cache.set(cacheKey, data);
+                                item.expand[path] = data;
+                            }
+                        } catch (e) {
+                            console.warn(`[Expand] Failed for ${path}:`, e);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // Tek kayıt getir
-    async getOne(id: string) {
+    async getOne(id: string, options: any = {}) {
         if (!id) throw new Error("ID required");
         const docRef = doc(db, this.name, id);
         const docSnap = await getDoc(docRef);
         if (!docSnap.exists()) throw { status: 404, message: "Not found" };
-        return { id: docSnap.id, ...docSnap.data() };
+        const record = { id: docSnap.id, ...docSnap.data() };
+
+        if (options.expand) {
+            await this.expandRecords([record], options.expand);
+        }
+        return record;
     }
 
     // Sayfalı liste
@@ -122,11 +171,15 @@ class CollectionAdapter {
         let q = query(collection(db, this.name));
 
         if (options.filter) {
-            // Basit filtre ayrıştırma: field = "value"
-            const matchStr = options.filter.match(/(\w+)\s*=\s*"(.*)"/);
+            // Basit filtre ayrıştırma: field = "value" or field != "value"
+            const matchEq = options.filter.match(/(\w+)\s*=\s*"(.*)"/);
+            const matchNotEq = options.filter.match(/(\w+)\s*!=\s*"(.*)"/);
             const matchNum = options.filter.match(/(\w+)\s*=\s*(\d+)/);
-            if (matchStr) {
-                q = query(q, where(matchStr[1], "==", matchStr[2]));
+
+            if (matchEq) {
+                q = query(q, where(matchEq[1], "==", matchEq[2]));
+            } else if (matchNotEq) {
+                q = query(q, where(matchNotEq[1], "!=", matchNotEq[2]));
             } else if (matchNum) {
                 q = query(q, where(matchNum[1], "==", Number(matchNum[2])));
             }
@@ -143,6 +196,10 @@ class CollectionAdapter {
         const snap = await getDocs(q);
         const items = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
 
+        if (options.expand) {
+            await this.expandRecords(items, options.expand);
+        }
+
         return {
             items,
             page,
@@ -157,8 +214,8 @@ class CollectionAdapter {
         return res.items;
     }
 
-    async getFirstListItem(filter: string) {
-        const res = await this.getList(1, 1, { filter });
+    async getFirstListItem(filter: string, options: any = {}) {
+        const res = await this.getList(1, 1, { filter, ...options });
         if (res.items.length === 0) throw { status: 404, message: "Not found" };
         return res.items[0];
     }
@@ -317,9 +374,9 @@ class CollectionAdapter {
 }
 
 // -------------------------------------------------------------------
-// PBAdapter - PocketBase istemcisini taklit eden wrapper
+// FirebaseAdapter - Firebase istemcisini PocketBase API stilinde sunan wrapper
 // -------------------------------------------------------------------
-class PBAdapter {
+class FirebaseAdapter {
     authStore: any;
     isAuthReady: boolean = false;
     authReadyPromise: Promise<void>;
@@ -361,7 +418,9 @@ class PBAdapter {
                         username: user.displayName || user.email?.split('@')[0] || 'Kullanıcı',
                         coins: 0,
                         level: 1,
-                        isVIP: false
+                        isVIP: false,
+                        followers: [],
+                        following: []
                     };
                     this.authStore.model = {
                         id: user.uid,
@@ -405,12 +464,12 @@ class PBAdapter {
     files = {
         getUrl: (record: any, filename: string): string => {
             if (!filename) return '';
-            // Zaten tam URL ise doğrudan döndür
+            // Firebase zaten tam URL döndürdüğü için doğrudan geri veriyoruz
             if (filename.startsWith('http')) return filename;
-            // Yoksa placeholder döndür
-            return '';
+            return filename; // Muhtemelen base64 veya geçersiz değer
         }
     };
 }
 
-export const pb = new PBAdapter() as any;
+// PocketBase bağımlılığını tamamen kestik, sadece 'pb' adını uyumluluk için koruyoruz.
+export const pb = new FirebaseAdapter() as any;

@@ -4,7 +4,7 @@
   "version": "1.6.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -n \"PocketBase,Backend,Frontend\" -c \"blue,green,magenta\" \"pocketbase\\\\pocketbase.exe serve --http=0.0.0.0:8090\" \"node server.js\" \"vite --host\"",
+    "dev": "concurrently -n \"Backend,Frontend\" -c \"green,magenta\" \"node server.js\" \"vite --host\"",
     "watchdog": "node watchdog.js",
     "build": "vite build",
     "start": "node server.js",
@@ -31,7 +31,6 @@
     "jsonwebtoken": "^9.0.3",
     "nedb": "^1.8.0",
     "onesignal-cordova-plugin": "^5.3.1",
-    "pocketbase": "^0.26.8",
     "prom-client": "^15.1.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
