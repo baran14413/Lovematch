@@ -453,6 +453,21 @@ class FirebaseSocketEmulator {
             return;
         }
 
+        if (event === 'leave_1v1_room' && data) {
+            const rid = data.roomId || data;
+            const puid = data.partnerUid;
+            if (puid) {
+                addDoc(collection(db, 'signaling'), {
+                    fromUid: this.uid,
+                    toUid: puid,
+                    signalType: 'partner_left',
+                    roomId: rid,
+                    timestamp: serverTimestamp()
+                }).catch(() => { });
+            }
+            return;
+        }
+
         this.emit_local(event, data);
     }
 

@@ -78,8 +78,11 @@ export default function OneVsOneMatchPage({ onClose }: { onClose: () => void }) 
 
         const onDMStart = () => {
             cleanupVoice();
+            cleanupVoice();
             socket.emit('leave_1v1_pool');
-            if (roomIdRef.current) socket.emit('leave_1v1_room', roomIdRef.current);
+            if (roomIdRef.current && matchedUserRef.current?.uid) {
+                socket.emit('leave_1v1_room', { roomId: roomIdRef.current, partnerUid: matchedUserRef.current.uid });
+            }
 
             const targetUid = matchedUserRef.current?.uid;
             onClose();

@@ -238,16 +238,12 @@ setInterval(async () => {
 
         console.log(`[1v1] Matched ${u1.name} and ${u2.name}`);
 
-        // Notify both via Firestore (They are listening to their 'notifications' or specialized '1v1' events)
-        // Here we can use the 'signaling' collection as a transport for these UI events too
-        const matchEvent = {
-            type: '1v1_matched',
-            roomId,
-            timestamp: admin.firestore.FieldValue.serverTimestamp()
-        };
+        console.log(`[1v1] Matched ${u1.name} and ${u2.name}`);
 
-        await db.collection('signaling').add({ fromUid: 'system', toUid: u1.uid, signalType: '1v1_matched', roomId, partner: u2 });
-        await db.collection('signaling').add({ fromUid: 'system', toUid: u2.uid, signalType: '1v1_matched', roomId, partner: u1 });
+        // Notify u1 (initiator)
+        await db.collection('signaling').add({ fromUid: 'system', toUid: u1.uid, signalType: '1v1_matched', roomId, partner: u2, isInitiator: true });
+        // Notify u2 (listener)
+        await db.collection('signaling').add({ fromUid: 'system', toUid: u2.uid, signalType: '1v1_matched', roomId, partner: u1, isInitiator: false });
     }
 }, 3000);
 
