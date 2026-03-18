@@ -80,12 +80,22 @@ class FirebaseSocketEmulator {
             snapshot.docChanges().forEach(async (change) => {
                 if (change.type === 'added') {
                     const data = change.doc.data();
-                    // webrtc_signal event'ini tetikle
-                    this.emit_local('webrtc_signal', {
-                        from: data.fromUid,
-                        signal: data.signal,
-                        type: data.signalType
-                    });
+
+                    if (data.signalType === 'ice' || data.signalType === 'offer' || data.signalType === 'answer') {
+                        // webrtc_signal event'ini tetikle (Vite-style generic signal)
+                        this.emit_local('webrtc_signal', {
+                            from: data.fromUid,
+                            signal: data.signal,
+                            type: data.signalType
+                        });
+                    } else {
+                        // Özel sinyal tiplerini (request_offer, peer_mic_on vb.) direkt event olarak yay
+                        this.emit_local(data.signalType, {
+                            from: data.fromUid,
+                            ...data
+                        });
+                    }
+
                     // Sinyali okunduktan sonra sil (Firestore'u temiz tut)
                     deleteDoc(change.doc.ref).catch(() => { });
                 }
@@ -363,13 +373,24 @@ class FirebaseSocketEmulator {
 
         if (event === 'peer_mic_on' && this.currentRoomId) {
             // Odadaki diğer kişilere "mikrofonum açıldı" sinyali göndermek için
-            // geçici olarak webrtc_signal altyapısını kullanıyoruz
-            addDoc(collection(db, 'signaling'), {
-                fromUid: this.uid,
-                roomId: this.currentRoomId,
-                signalType: 'peer_mic_on',
-                timestamp: serverTimestamp()
-            }).catch(() => { });
+            // Aktif koltuklardaki herkese tek tek sinyal gönder
+            getDoc(doc(db, 'rooms', this.currentRoomId)).then(snap => {
+                if (!snap.exists()) return;
+                const roomData = snap.data();
+                const targetUids = (roomData.seats || [])
+                    .filter((s: any) => s && s.uid && s.uid !== this.uid)
+                    .map((s: any) => s.uid);
+
+                targetUids.forEach((toUid: string) => {
+                    addDoc(collection(db, 'signaling'), {
+                        fromUid: this.uid,
+                        toUid: toUid,
+                        roomId: this.currentRoomId,
+                        signalType: 'peer_mic_on',
+                        timestamp: serverTimestamp()
+                    }).catch(() => { });
+                });
+            });
             return;
         }
 

@@ -318,11 +318,31 @@ export function usePartyRoom(roomId: string) {
             setChat((data.messages || []).slice(-50));
             setIsLoading(false);
 
-            // Odaya girince koltukta olan herkesten offer iste
+            // Peer Temizliği: Koltukta olmayanların bağlantılarını kapat
+            const currentSeatUids = new Set(data.seats.filter((s: any) => s && s.uid).map((s: any) => s.uid));
+            peers.current.forEach((pc, socketId) => {
+                // socketId (uid) artık koltukta değilse kapat
+                if (!currentSeatUids.has(socketId)) {
+                    console.log('[WebRTC] Cleaning up stale peer:', socketId);
+                    pc.close();
+                    peers.current.delete(socketId);
+                    const stream = remoteStreamsRef.current.get(socketId);
+                    if (stream) {
+                        stream.getTracks().forEach(t => t.stop());
+                        remoteStreamsRef.current.delete(socketId);
+                        setRemoteStreamsState(new Map(remoteStreamsRef.current));
+                    }
+                    document.getElementById(`audio-${socketId}`)?.remove();
+                }
+            });
+
+            // Odaya girince koltukta olan herkesten offer iste (henüz bağlı değilsek)
             if (data.seats) {
                 data.seats.forEach((seat: any) => {
-                    if (seat && seat.socketId && seat.socketId !== socket.id) {
-                        socket.emit('request_offer', { to: seat.socketId });
+                    if (seat && seat.uid && seat.uid !== socket?.id) {
+                        if (!peers.current.has(seat.uid)) {
+                            socket?.emit('request_offer', { to: seat.uid });
+                        }
                     }
                 });
             }

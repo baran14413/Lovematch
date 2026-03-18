@@ -97,6 +97,12 @@ export default function HomePage({ onOpenParty, onOpen1v1Match }: { onOpenParty:
             setSelectedImage(null);
             setImagePreview(null);
             setShowPostModal(false);
+
+            // Post paylaşıldı bildirimi
+            if (typeof (window as any).NotificationService?.show === 'function') {
+                (window as any).NotificationService.show('✨ Paylaşıldı', 'Gönderiniz başarıyla yayınlandı.');
+            }
+
             fetchData(); // Postu anında listele
         } catch (err: any) {
             console.error('[Post] Oluşturma hatası:', err);
@@ -145,12 +151,13 @@ export default function HomePage({ onOpenParty, onOpen1v1Match }: { onOpenParty:
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            // Aktif kullanıcıları sadece animasyonda kullanmak için getir
-            const userList = await pb.collection('users').getList(1, 10, {
+            // Aktif kullanıcıları listele - Kompozit indeks (id!=) hatasını önlemek için filtrelemeyi JS tarafında yapıyoruz
+            const userList = await pb.collection('users').getList(1, 12, {
                 sort: '-updated',
-                filter: `id != "${pb.authStore.model?.id}" && avatar != ""`
+                filter: `avatar != ""`
             });
-            setUsers(userList.items);
+            const myId = pb.authStore.model?.id;
+            setUsers(userList.items.filter((u: any) => u.id !== myId).slice(0, 10));
 
             // Feed Filtreleme Mantığı
             let sortOrder = '-created';
