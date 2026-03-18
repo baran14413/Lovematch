@@ -19,6 +19,40 @@ app.use(express.static(path.join(__dirname, 'dist'), {
     }
 }));
 
+app.use(express.json());
+
+// Admin Login Route
+app.post('/admin/login', (req, res) => {
+    const { key } = req.body;
+    const ADMIN_KEY = "Gunahbenim09"; // User requested key
+    if (key === ADMIN_KEY) {
+        res.json({ success: true });
+    } else {
+        res.status(401).json({ success: false, message: 'Geçersiz anahtar' });
+    }
+});
+
+// Admin Stats Mock (To prevent dashboard from crashing)
+app.get('/admin/stats', (req, res) => {
+    res.json({
+        success: true,
+        totalSockets: 1,
+        totalRooms: 0,
+        activeRooms: 0,
+        sleepingRooms: 0,
+        usersInSeats: 0,
+        totalViewers: 0,
+        uptime: process.uptime(),
+        memoryMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+        rssMemoryMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
+        nodeVersion: process.version,
+        pid: process.pid,
+        platform: process.platform,
+        maxCapacity: 1000,
+        maxVoice: 100
+    });
+});
+
 // Fallback all routes to index.html for Single Page Application
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));

@@ -141,7 +141,7 @@ class CollectionAdapter {
                             const docRef = doc(db, targetColl, relatedId);
                             const docSnap = await getDoc(docRef);
                             if (docSnap.exists()) {
-                                const data = { id: docSnap.id, ...docSnap.data() };
+                                const data = this.formatDoc(docSnap.id, docSnap.data());
                                 cache.set(cacheKey, data);
                                 item.expand[path] = data;
                             }
@@ -158,14 +158,35 @@ class CollectionAdapter {
     async getOne(id: string, options: any = {}) {
         if (!id) throw new Error("ID required");
         const docRef = doc(db, this.name, id);
-        const docSnap = await getDoc(docRef);
-        if (!docSnap.exists()) throw { status: 404, message: "Not found" };
-        const record = { id: docSnap.id, ...docSnap.data() };
+        try {
+            const docSnap = await getDoc(docRef);
+            if (!docSnap.exists()) throw { status: 404, message: "Not found" };
+            const record = this.formatDoc(docSnap.id, docSnap.data());
 
-        if (options.expand) {
-            await this.expandRecords([record], options.expand);
+            if (options.expand) {
+                await this.expandRecords([record], options.expand);
+            }
+            return record;
+        } catch (e) {
+            console.error('[Firebase] getOne error:', e);
+            throw e;
         }
-        return record;
+    }
+
+    private formatDoc(id: string, data: any) {
+        if (!data) return { id };
+        const formatted = { id, ...data };
+        // Tüm Firestore Timestamp objelerini ISO string'e çevir (Vite-Style uyumluluk)
+        for (const key in formatted) {
+            const val = formatted[key];
+            if (val && typeof val === 'object' && 'toDate' in val && typeof val.toDate === 'function') {
+                formatted[key] = val.toDate().toISOString();
+            } else if (val && typeof val === 'object' && '_seconds' in val && '_nanoseconds' in val) {
+                // Alternatif format (Admin SDK stili)
+                formatted[key] = new Date(val._seconds * 1000).toISOString();
+            }
+        }
+        return formatted;
     }
 
     // Sayfalı liste
@@ -239,7 +260,7 @@ class CollectionAdapter {
         q = query(q, limit(perPage));
 
         const snap = await getDocs(q);
-        const items = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+        const items = snap.docs.map(doc => this.formatDoc(doc.id, doc.data()));
 
         if (options.expand) {
             await this.expandRecords(items, options.expand);
