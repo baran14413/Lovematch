@@ -444,47 +444,49 @@ export function usePartyRoom(roomId: string) {
     const toggleMic = useCallback(async () => {
         try {
             if (!isMicOn) {
-                // Mikrofon aç
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    audio: AUDIO_CONSTRAINTS,
-                    video: false
-                });
+                // SES IZNI AL/AC
+                let stream = localStream.current;
 
-                // Eğer zaten video varsa onu da ekle
-                if (isCameraOn && localStream.current) {
-                    const videoTracks = localStream.current.getVideoTracks();
-                    videoTracks.forEach(t => stream.addTrack(t));
+                // Eğer hiç stream yoksa yeni oluştur
+                if (!stream) {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        audio: AUDIO_CONSTRAINTS,
+                        video: isCameraOn ? true : false
+                    });
+                    localStream.current = stream;
+                } else {
+                    // Zaten stream varsa ve audio track yoksa ekle
+                    if (stream.getAudioTracks().length === 0) {
+                        const audioStream = await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS });
+                        const audioTrack = audioStream.getAudioTracks()[0];
+                        stream.addTrack(audioTrack);
+                    }
+                    stream.getAudioTracks().forEach(t => t.enabled = true);
                 }
 
-                localStream.current = stream;
+                // Peer'lerdeki audio track'i güncelle
+                const audioTrack = stream.getAudioTracks()[0];
+                peers.current.forEach(pc => {
+                    const sender = pc.getSenders().find(s => s.track?.kind === 'audio');
+                    if (sender) {
+                        sender.replaceTrack(audioTrack);
+                    } else {
+                        pc.addTrack(audioTrack, stream!);
+                    }
+                });
+
                 micOnRef.current = true;
                 setIsMicOn(true);
                 startVoiceDetection(stream);
                 socket?.emit('speaking_state', 10);
                 socket?.emit('peer_mic_on', { roomId });
-
-                // Odadaki herkese teklif gönder
-                if (roomState?.seats) {
-                    roomState.seats.forEach((seat: any) => {
-                        if (seat && seat.socketId && seat.socketId !== socket?.id) {
-                            sendOffer(seat.socketId);
-                        }
-                    });
-                }
             } else {
-                // Mikrofon kapat
-                localStream.current?.getAudioTracks().forEach(t => t.stop());
+                // Mikrofon kapat (duraklat)
+                localStream.current?.getAudioTracks().forEach(t => t.enabled = false);
                 micOnRef.current = false;
                 setIsMicOn(false);
                 cancelAnimationFrame(vadFrameRef.current);
                 socket?.emit('speaking_state', 0);
-
-                // Eğer kamera da kapalıysa tüm stream'i temizle
-                if (!isCameraOn) {
-                    localStream.current = null;
-                    peers.current.forEach(pc => pc.close());
-                    peers.current.clear();
-                }
             }
         } catch (err: any) {
             console.error('[Mic] Toggle failed:', err);
@@ -498,54 +500,53 @@ export function usePartyRoom(roomId: string) {
     const toggleCamera = useCallback(async () => {
         try {
             if (!isCameraOn) {
-                // Kamera aç
-                const videoStream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        width: { ideal: 640 },
-                        height: { ideal: 480 },
-                        frameRate: { ideal: 24 }
+                let stream = localStream.current;
+
+                if (!stream) {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        audio: isMicOn ? AUDIO_CONSTRAINTS : false,
+                        video: {
+                            width: { ideal: 640 },
+                            height: { ideal: 480 },
+                            frameRate: { ideal: 24 }
+                        }
+                    });
+                    localStream.current = stream;
+                } else {
+                    if (stream.getVideoTracks().length === 0) {
+                        const videoStream = await navigator.mediaDevices.getUserMedia({
+                            video: {
+                                width: { ideal: 640 },
+                                height: { ideal: 480 },
+                                frameRate: { ideal: 24 }
+                            }
+                        });
+                        const videoTrack = videoStream.getVideoTracks()[0];
+                        stream.addTrack(videoTrack);
+                    }
+                    stream.getVideoTracks().forEach(t => t.enabled = true);
+                }
+
+                // Peer'lerdeki video track'i güncelle
+                const videoTrack = stream.getVideoTracks()[0];
+                peers.current.forEach(pc => {
+                    const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+                    if (sender) {
+                        sender.replaceTrack(videoTrack);
+                    } else {
+                        pc.addTrack(videoTrack, stream!);
                     }
                 });
 
-                const combinedStream = new MediaStream(videoStream.getVideoTracks());
-
-                // Eğer ses de açıksa değiştirme
-                if (localStream.current && isMicOn) {
-                    localStream.current.getAudioTracks().forEach(t => combinedStream.addTrack(t));
-                }
-
-                localStream.current = combinedStream;
                 setIsCameraOn(true);
-
-                if (isMicOn) startVoiceDetection(combinedStream);
-
-                // Odadaki herkese teklif gönder (renegotiation)
-                if (roomState?.seats) {
-                    roomState.seats.forEach((seat: any) => {
-                        if (seat && seat.socketId && seat.socketId !== socket?.id) {
-                            sendOffer(seat.socketId);
-                        }
-                    });
-                }
             } else {
-                // Kamera kapat
-                localStream.current?.getVideoTracks().forEach(t => {
-                    t.stop();
-                    localStream.current?.removeTrack(t);
-                });
-
-                if (localStream.current && isMicOn) {
-                    localStream.current = new MediaStream(localStream.current.getAudioTracks());
-                } else if (!isMicOn) {
-                    localStream.current = null;
-                }
-
+                localStream.current?.getVideoTracks().forEach(t => t.enabled = false);
                 setIsCameraOn(false);
             }
         } catch (err: any) {
             console.error('[Camera] Toggle failed:', err);
             if (err.name === 'NotAllowedError') {
-                setError('Kamera izni reddedildi. Lütfen ayarlardan izin verin.');
+                setError('Kamera izni reddedildi.');
             }
         }
     }, [isCameraOn, isMicOn, socket, startVoiceDetection, roomState, sendOffer]);
