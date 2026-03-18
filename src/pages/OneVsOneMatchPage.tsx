@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { pb } from '../pb';
-import { io, Socket } from 'socket.io-client';
+import { useSocket } from '../context/SocketContext';
 import { useNavigate } from 'react-router-dom';
-
-const SERVER_URL = ''; // Proxied via Caddy
 
 type Phase = 'lobby' | 'matching' | 'chat';
 
@@ -11,7 +9,7 @@ export default function OneVsOneMatchPage({ onClose }: { onClose: () => void }) 
     const navigate = useNavigate();
     const [phase, setPhase] = useState<Phase>('lobby');
     const [matchProgress, setMatchProgress] = useState(0);
-    const [socket, setSocket] = useState<Socket | null>(null);
+    const { socket } = useSocket();
     const [matchedUser, setMatchedUser] = useState<any>(null);
     const matchedUserRef = useRef<any>(null);
     const [roomId, setRoomId] = useState<string | null>(null);
@@ -35,90 +33,62 @@ export default function OneVsOneMatchPage({ onClose }: { onClose: () => void }) 
     const user = pb.authStore.model;
 
     useEffect(() => {
-        if (!user) return;
-        const s = io(SERVER_URL);
-        setSocket(s);
+        if (!user || !socket) return;
 
-        s.on('connect', () => {
+        const onConnect = () => {
             if (roomIdRef.current) {
-                s.emit('join_1v1_room_reconnect', roomIdRef.current);
+                socket.emit('join_1v1_room_reconnect', roomIdRef.current);
             }
-        });
+        };
 
-        s.on('1v1_matched', ({ roomId, partner }) => {
-            setRoomId(roomId);
-            roomIdRef.current = roomId;
-            setMatchedUser(partner);
-            matchedUserRef.current = partner;
+        const onMatched = (data: any) => {
+            setRoomId(data.roomId);
+            roomIdRef.current = data.roomId;
+            setMatchedUser(data.partner);
+            matchedUserRef.current = data.partner;
             setPhase('chat');
             setMatchProgress(100);
 
             const avatarUrl = user.avatar ? pb.files.getUrl(user, user.avatar) : '';
 
-            s.emit('join_room', {
-                roomId,
+            socket.emit('join_room', {
+                roomId: data.roomId,
                 uid: user.id,
                 name: user.username || user.name || 'Sen',
                 avatar: avatarUrl,
                 color: 'var(--purple-main)'
             });
-        });
+        };
 
-        s.on('receive_message', (message: any) => {
+        const onMsg = (message: any) => {
             setChat(prev => {
-                // aynı mesaj eklenmesin (optimistic duplicate check)
                 if (prev.find(m => m.id === message.id)) return prev;
                 return [...prev, message];
             });
             setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
-        });
+        };
 
-        s.on('1v1_partner_decision', (decision: string) => {
+        const onDecision = (decision: string) => {
             setPartnerDecision(decision);
             if (decision === 'decline') {
                 alert('Eşleştiğin kişi sohbeti uzatmak istemedi.');
                 cleanupAndClose();
             }
-        });
+        };
 
-        s.on('1v1_dm_start', () => {
+        const onDMStart = () => {
             cleanupVoice();
-            if (s) {
-                s.emit('leave_1v1_pool');
-                if (roomIdRef.current) s.emit('leave_1v1_room', roomIdRef.current);
-            }
+            socket.emit('leave_1v1_pool');
+            if (roomIdRef.current) socket.emit('leave_1v1_room', roomIdRef.current);
+
             const targetUid = matchedUserRef.current?.uid;
             onClose();
             if (targetUid) {
                 navigate(`/chat?userId=${targetUid}`);
             }
-        });
+        };
 
-        s.on('user_ready_voice', async (senderId: string) => {
-            if (localStream.current) {
-                createPeerConnection(senderId, s, true);
-            }
-        });
-
-        s.on('webrtc_offer', async ({ sender, offer }) => {
-            const pc = createPeerConnection(sender, s, false);
-            await pc.setRemoteDescription(new RTCSessionDescription(offer));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            s.emit('webrtc_answer', { target: sender, answer });
-        });
-
-        s.on('webrtc_answer', async ({ answer }) => {
-            const pc = peerConnection.current;
-            if (pc) await pc.setRemoteDescription(new RTCSessionDescription(answer));
-        });
-
-        s.on('webrtc_ice_candidate', async ({ candidate }) => {
-            const pc = peerConnection.current;
-            if (pc && candidate) await pc.addIceCandidate(new RTCIceCandidate(candidate));
-        });
-
-        s.on('partner_left', () => {
+        const onPartnerLeft = () => {
             if (!showEndOptions) {
                 alert('Eşleştiğin kullanıcı ayrıldı.');
             }
@@ -128,16 +98,26 @@ export default function OneVsOneMatchPage({ onClose }: { onClose: () => void }) 
             setMatchedUser(null);
             setChat([]);
             setShowEndOptions(false);
-        });
+        };
+
+        socket.on('connect', onConnect);
+        socket.on('1v1_matched', onMatched);
+        socket.on('receive_message', onMsg);
+        socket.on('1v1_partner_decision', onDecision);
+        socket.on('1v1_dm_start', onDMStart);
+        socket.on('partner_left', onPartnerLeft);
 
         return () => {
+            socket.off('connect', onConnect);
+            socket.off('1v1_matched', onMatched);
+            socket.off('receive_message', onMsg);
+            socket.off('1v1_partner_decision', onDecision);
+            socket.off('1v1_dm_start', onDMStart);
+            socket.off('partner_left', onPartnerLeft);
             cleanupVoice();
-            if (s) {
-                s.emit('leave_1v1_pool');
-                s.disconnect();
-            }
+            socket.emit('leave_1v1_pool');
         };
-    }, []);
+    }, [socket]);
 
     const startMatching = () => {
         if (!socket || !user) return;
@@ -169,7 +149,7 @@ export default function OneVsOneMatchPage({ onClose }: { onClose: () => void }) 
         setMatchProgress(0);
     };
 
-    const createPeerConnection = (targetId: string, s: Socket, isInitiator: boolean) => {
+    const createPeerConnection = (targetId: string, s: any, isInitiator: boolean) => {
         if (peerConnection.current) return peerConnection.current;
         const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
         peerConnection.current = pc;
@@ -178,7 +158,7 @@ export default function OneVsOneMatchPage({ onClose }: { onClose: () => void }) 
         }
         pc.onicecandidate = (event) => {
             if (event.candidate) {
-                s.emit('webrtc_ice_candidate', { target: targetId, candidate: event.candidate });
+                s.emit('webrtc_signal', { to: targetId, signal: event.candidate, type: 'ice' });
             }
         };
         pc.ontrack = (event) => {
@@ -190,9 +170,9 @@ export default function OneVsOneMatchPage({ onClose }: { onClose: () => void }) 
             remoteAudio.current.srcObject = event.streams[0];
         };
         if (isInitiator) {
-            pc.createOffer().then(offer => {
-                pc.setLocalDescription(offer);
-                s.emit('webrtc_offer', { target: targetId, offer });
+            pc.createOffer().then(async offer => {
+                await pc.setLocalDescription(offer);
+                s.emit('webrtc_signal', { to: targetId, signal: offer, type: 'offer' });
             });
         }
         return pc;

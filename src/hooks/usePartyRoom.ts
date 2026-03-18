@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSocket } from '../context/SocketContext';
 import { pb } from '../pb';
+import { db } from '../firebase';
+import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 
 /**
  * LOVEMATCH REBORN V15 - ULTRA STABLE AUDIO & VIDEO
@@ -99,13 +101,21 @@ export function usePartyRoom(roomId: string) {
 
     // Peer bağlantısı oluştur
     const createPeer = useCallback((targetSocketId: string, stream?: MediaStream) => {
-        // Eğer zaten bağlı bir PC varsa tekrar oluşturma
+        // Eğer zaten bağlı bir PC varsa, sadece yeni track'leri ekle ve devam et
         const existing = peers.current.get(targetSocketId);
-        if (existing && existing.connectionState !== 'failed' && existing.connectionState !== 'closed') {
+        if (existing && (existing.connectionState === 'connected' || existing.connectionState === 'connecting')) {
+            if (stream) {
+                stream.getTracks().forEach(track => {
+                    const alreadyAdded = existing.getSenders().some(s => s.track?.id === track.id);
+                    if (!alreadyAdded) {
+                        existing.addTrack(track, stream);
+                    }
+                });
+            }
             return existing;
         }
 
-        // Eğer varsa kapat
+        // Eğer PC kopmuşsa veya hiç yoksa yeni oluştur
         if (existing) {
             existing.close();
             peers.current.delete(targetSocketId);
@@ -127,6 +137,11 @@ export function usePartyRoom(roomId: string) {
                     type: 'ice'
                 });
             }
+        };
+
+        // Renegotiation (Yeni track eklendiğinde teklif gönder)
+        pc.onnegotiationneeded = () => {
+            sendOffer(targetSocketId);
         };
 
         // ICE bağlantı durumu değişirse log'la
@@ -592,6 +607,17 @@ export function usePartyRoom(roomId: string) {
             toggleCamera,
             takeSeat: (index: number) => socket?.emit('take_seat', index),
             leaveSeat: () => socket?.emit('leave_seat'),
+            toggleFollowRoom: async () => {
+                if (!roomId || !pb.authStore.model?.id) return;
+                const isFollowing = roomState?.followers?.includes(pb.authStore.model.id);
+                try {
+                    await updateDoc(doc(db, 'rooms', roomId), {
+                        followers: isFollowing
+                            ? arrayRemove(pb.authStore.model.id)
+                            : arrayUnion(pb.authStore.model.id)
+                    });
+                } catch (e) { console.error('Follow error:', e); }
+            },
             sendMessage: (text: string) => socket?.emit('send_msg', text),
             updateRoomName: async (name: string) => {
                 await pb.collection('rooms').update(roomId, { name });

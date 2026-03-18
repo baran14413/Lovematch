@@ -41,11 +41,6 @@ export const StoreService = {
                 id: 'vip_01',
                 type: ProductType.PAID_SUBSCRIPTION,
                 platform: Platform.GOOGLE_PLAY,
-            },
-            {
-                id: 'vip_01',
-                type: ProductType.CONSUMABLE,
-                platform: Platform.GOOGLE_PLAY,
             }
         ]);
 

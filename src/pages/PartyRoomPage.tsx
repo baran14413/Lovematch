@@ -37,7 +37,7 @@ function useLongPress(callback: () => void, ms = 600) {
     };
 }
 
-function VideoPreview({ stream, muted = false }: { stream: MediaStream, muted?: boolean }) {
+function VideoPreview({ stream, muted = false, isLocal = false }: { stream: MediaStream, muted?: boolean, isLocal?: boolean }) {
     const videoRef = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
@@ -77,7 +77,7 @@ function VideoPreview({ stream, muted = false }: { stream: MediaStream, muted?: 
             className="seat-video"
             style={{
                 width: '100%', height: '100%', objectFit: 'cover',
-                transform: 'scaleX(-1)',  // Ayna efekti (selfie için)
+                transform: isLocal ? 'scaleX(-1)' : 'none',  // Ayna efekti sadece lokalde
                 borderRadius: 'inherit'
             }}
         />
@@ -117,6 +117,7 @@ function Seat({ seat, index, isHost, isLeader, isLocked, localStream, remoteStre
                                     <VideoPreview
                                         stream={stream}
                                         muted={seat?.uid === pb.authStore.model?.id}
+                                        isLocal={seat?.uid === pb.authStore.model?.id}
                                     />
                                 ) : (
                                     <img src={seat.avatar || fallback} className="avatar-img" onError={(e) => e.currentTarget.src = fallback} />

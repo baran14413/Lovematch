@@ -166,7 +166,7 @@ function LoginGate({ onLogin }: { onLogin: () => void }) {
  *  ANA DASHBOARD
  * ═════════════════════════════════════════════════ */
 function Dashboard() {
-    type Tab = 'overview' | 'rooms' | 'users' | 'broadcast' | 'pocketbase' | 'settings';
+    type Tab = 'overview' | 'rooms' | 'users' | 'broadcast' | 'pocketbase' | 'filters' | 'settings';
     const [tab, setTab] = useState<Tab>('overview');
     const [stats, setStats] = useState<any>(null);
     const [roomsList, setRoomsList] = useState<any[]>([]);
@@ -190,6 +190,8 @@ function Dashboard() {
     const [pbLoginError, setPbLoginError] = useState('');
     // Sistem logları
     const [activityLog, setActivityLog] = useState<string[]>([]);
+    const [badWords, setBadWords] = useState<string[]>([]);
+    const [newWord, setNewWord] = useState('');
 
     const intervalRef = useRef<any>(null);
     const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3500); };
@@ -226,17 +228,25 @@ function Dashboard() {
         try { const r = await fetch('/api/health'); setPbStatus(r.ok ? 'ok' : 'error'); } catch { setPbStatus('error'); }
     }, []);
 
+    const fetchFilters = useCallback(async () => {
+        try {
+            const res = await apiFetch('/admin/filters');
+            const d = await res.json();
+            if (d.success) setBadWords(d.badWords || []);
+        } catch (e) { console.error('Filters fetch error:', e); }
+    }, []);
+
     /* İlk yükleme + auto refresh */
     useEffect(() => {
-        fetchStats(); fetchRooms(); checkPb();
+        fetchStats(); fetchRooms(); checkPb(); fetchFilters();
         intervalRef.current = setInterval(() => { fetchStats(); fetchRooms(); }, 5000);
         return () => clearInterval(intervalRef.current);
-    }, [fetchStats, fetchRooms, checkPb]);
+    }, [fetchStats, fetchRooms, checkPb, fetchFilters]);
 
-    useEffect(() => { if (tab === 'users') fetchOnlineUsers(); if (tab === 'pocketbase') { fetchPbUsers(); checkPb(); } }, [tab]);
+    useEffect(() => { if (tab === 'users') fetchOnlineUsers(); if (tab === 'pocketbase') { fetchPbUsers(); checkPb(); } if (tab === 'filters') fetchFilters(); }, [tab, fetchOnlineUsers, fetchPbUsers, checkPb, fetchFilters]);
 
     /* Manuel yenileme */
-    const refresh = async () => { setRefreshing(true); await fetchStats(); await fetchRooms(); if (tab === 'users') await fetchOnlineUsers(); if (tab === 'pocketbase') await fetchPbUsers(); setRefreshing(false); addLog('Veriler yenilendi'); };
+    const refresh = async () => { setRefreshing(true); await fetchStats(); await fetchRooms(); if (tab === 'users') await fetchOnlineUsers(); if (tab === 'pocketbase') await fetchPbUsers(); if (tab === 'filters') await fetchFilters(); setRefreshing(false); addLog('Veriler yenilendi'); };
 
     /* Aksiyon fonksiyonları */
     const deleteRoom = async (id: string, name: string) => { if (!confirm(`"${name}" odasını silmek?`)) return; await apiFetch(`/admin/rooms/${id}`, { method: 'DELETE' }); showToast(`🗑️ "${name}" silindi`); addLog(`Oda silindi: ${name}`); fetchRooms(); };
@@ -244,6 +254,32 @@ function Dashboard() {
     const sendBroadcast = async () => { if (!broadcastMsg.trim()) return; const r = await apiFetch('/admin/broadcast', { method: 'POST', body: JSON.stringify({ message: broadcastMsg }) }); const d = await r.json(); if (d.success) { setBroadcastSent(true); showToast(`📢 ${d.recipientCount} kişiye gönderildi`); addLog(`Duyuru gönderildi: ${broadcastMsg.slice(0, 50)}...`); setTimeout(() => setBroadcastSent(false), 3000); setBroadcastMsg(''); } };
     const toggleMaint = async () => { const r = await apiFetch('/admin/maintenance', { method: 'POST', body: JSON.stringify({ enabled: !stats?.maintenanceMode }) }); const d = await r.json(); if (d.success) { showToast(d.maintenanceMode ? '🔧 Bakım AÇIK' : '✅ Bakım KAPALI'); addLog(`Bakım modu: ${d.maintenanceMode ? 'AÇILDI' : 'KAPATILDI'}`); fetchStats(); } };
     const updateRole = async (uid: string, role: string) => { try { await pb.collection('users').update(uid, { role }); showToast(`✅ Rol: ${role}`); addLog(`Rol değiştirildi → ${role}`); fetchPbUsers(); } catch { showToast('❌ Rol güncellenemedi'); } };
+
+    const addBadWord = async () => {
+        if (!newWord.trim()) return;
+        const updated = Array.from(new Set([...badWords, newWord.trim().toLowerCase()]));
+        try {
+            const res = await apiFetch('/admin/filters', { method: 'POST', body: JSON.stringify({ badWords: updated }) });
+            if ((await res.json()).success) {
+                setBadWords(updated);
+                setNewWord('');
+                showToast('Kelime eklendi');
+                addLog(`Yeni yasaklı kelime: ${newWord}`);
+            }
+        } catch (e) { showToast('Ekleme başarısız'); }
+    };
+
+    const removeBadWord = async (word: string) => {
+        const updated = badWords.filter(w => w !== word);
+        try {
+            const res = await apiFetch('/admin/filters', { method: 'POST', body: JSON.stringify({ badWords: updated }) });
+            if ((await res.json()).success) {
+                setBadWords(updated);
+                showToast('Kelime kaldırıldı');
+                addLog(`Yasak kaldırıldı: ${word}`);
+            }
+        } catch (e) { showToast('Kaldırma başarısız'); }
+    };
 
     /* PocketBase Giriş */
     const pbLogin = async () => {
@@ -263,6 +299,7 @@ function Dashboard() {
         { id: 'users', icon: '👥', label: 'Çevrimiçi' },
         { id: 'broadcast', icon: '📢', label: 'Duyuru' },
         { id: 'pocketbase', icon: '🗄️', label: 'Veritabanı' },
+        { id: 'filters', icon: '🚫', label: 'Filtreler' },
         { id: 'settings', icon: '⚙️', label: 'Sistem' },
     ];
 

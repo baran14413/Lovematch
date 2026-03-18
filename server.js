@@ -12,6 +12,77 @@ if (admin.apps.length === 0) {
 }
 const db = admin.firestore();
 
+// 1v1 Matching Pool (In-memory for speed, could be Firestore-backed for persistence)
+let matchingPool = [];
+
+// Bad words list (Default list, from Firestore eventually)
+let bad_words_list = ['sexs', 'yarak', 'am', 'meme', 'sik', 'göt', 'piç', 'yavşak', 'oruspu', 'kahpe'];
+
+// Load bad words from Firestore
+const loadBadWords = async () => {
+    try {
+        const docSnap = await db.collection('settings').doc('filters').get();
+        if (docSnap.exists) {
+            bad_words_list = docSnap.data().badWords || bad_words_list;
+        } else {
+            // Create default
+            await db.collection('settings').doc('filters').set({ badWords: bad_words_list });
+        }
+    } catch (e) {
+        console.warn('[Settings] Filters load error:', e.message);
+    }
+};
+loadBadWords();
+
+// Text filter helper
+const filterText = (text) => {
+    if (!text) return '';
+    let filtered = text;
+    bad_words_list.forEach(word => {
+        const regex = new RegExp(word, 'gi');
+        filtered = filtered.replace(regex, '*'.repeat(word.length));
+    });
+    return filtered;
+};
+
+// Push Notification Helper
+const sendPush = async (userIds, title, body, data = {}) => {
+    const ONESIGNAL_APP_ID = "dac0906c-e76a-46d4-bf59-4702ddc2cf70";
+    const ONESIGNAL_REST_API_KEY = "os_v2_app_3laja3hhnjdnjp2zi4bn3qwpocfn5sibyqje2v4lpp5m7ngh3owopcmcmqmpjcc4uc5vfatd5n5ypp2kvbepgnq75z3sihqivdsslfy";
+
+    const payload = {
+        app_id: ONESIGNAL_APP_ID,
+        headings: { "en": title, "tr": title },
+        contents: { "en": body, "tr": body },
+        data: data,
+        android_channel_id: "system_notifications"
+    };
+
+    if (userIds === "All") {
+        payload.included_segments = ["All"];
+    } else {
+        payload.include_external_user_ids = Array.isArray(userIds) ? userIds : [userIds];
+    }
+
+    try {
+        const response = await fetch("https://onesignal.com/api/v1/notifications", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json; charset=utf-8",
+                "Authorization": `Basic ${ONESIGNAL_REST_API_KEY}`
+            },
+            body: JSON.stringify(payload)
+        });
+        const resData = await response.json();
+        console.log('[OneSignal] Push Response:', resData);
+        return resData;
+    } catch (e) {
+        console.error('[OneSignal] Push Error:', e);
+        return null;
+    }
+};
+
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -114,12 +185,86 @@ app.get('/admin/users', async (req, res) => {
     }
 });
 
-// Admin Delete Room
+// Admin Delete Room & Notify Owner
 app.delete('/admin/rooms/:id', async (req, res) => {
     try {
+        const roomDoc = await db.collection('rooms').doc(req.params.id).get();
+        if (roomDoc.exists) {
+            const roomData = roomDoc.data();
+            const ownerUid = roomData.ownerUid;
+            const roomName = roomData.name || 'İsimsiz';
+
+            if (ownerUid) {
+                const notifyMsg = `${roomName} isimli odanız silindi. Bunun yanlış olduğunu düşünüyorsanız bematchstudio@gmail.com adresinden bizimle iletişime geçin.`;
+
+                // 1. In-App Notification (In Firestore)
+                await db.collection('notifications').add({
+                    user: ownerUid,
+                    title: 'Odanız Silindi ⚠️',
+                    body: notifyMsg,
+                    type: 'error', // Red color in UI
+                    read: false,
+                    timestamp: admin.firestore.FieldValue.serverTimestamp()
+                });
+
+                // 2. Push Notification (FCM)
+                await sendPush(ownerUid, 'Odanız Silindi ⚠️', notifyMsg, { type: 'room_deleted' });
+            }
+        }
         await db.collection('rooms').doc(req.params.id).delete();
         res.json({ success: true });
     } catch (e) { res.status(500).send(e.message); }
+});
+
+// Admin Filter Get & Update
+app.get('/admin/filters', (req, res) => {
+    res.json({ success: true, badWords: bad_words_list });
+});
+
+app.post('/admin/filters', async (req, res) => {
+    const { badWords } = req.body;
+    if (!Array.isArray(badWords)) return res.status(400).send('badWords must be an array');
+    bad_words_list = badWords;
+    await db.collection('settings').doc('filters').set({ badWords: badWords });
+    res.json({ success: true });
+});
+
+// --- Matchmaking Periodic Check ---
+setInterval(async () => {
+    if (matchingPool.length >= 2) {
+        const u1 = matchingPool.shift();
+        const u2 = matchingPool.shift();
+        const roomId = '1v1_' + Math.random().toString(36).slice(2, 9);
+
+        console.log(`[1v1] Matched ${u1.name} and ${u2.name}`);
+
+        // Notify both via Firestore (They are listening to their 'notifications' or specialized '1v1' events)
+        // Here we can use the 'signaling' collection as a transport for these UI events too
+        const matchEvent = {
+            type: '1v1_matched',
+            roomId,
+            timestamp: admin.firestore.FieldValue.serverTimestamp()
+        };
+
+        await db.collection('signaling').add({ fromUid: 'system', toUid: u1.uid, signalType: '1v1_matched', roomId, partner: u2 });
+        await db.collection('signaling').add({ fromUid: 'system', toUid: u2.uid, signalType: '1v1_matched', roomId, partner: u1 });
+    }
+}, 3000);
+
+// Endpoint to join pool
+app.post('/api/1v1/join', (req, res) => {
+    const { uid, name, avatar } = req.body;
+    if (!uid) return res.status(400).send('uid required');
+    if (!matchingPool.find(u => u.uid === uid)) {
+        matchingPool.push({ uid, name, avatar });
+    }
+    res.json({ success: true, queueSize: matchingPool.length });
+});
+
+app.post('/api/1v1/leave', (req, res) => {
+    const { uid } = req.body;
+    matchingPool = matchingPool.filter(u => u.uid !== uid);
+    res.json({ success: true });
 });
 
 // Admin Kick User (From socket/online status)
@@ -140,22 +285,8 @@ app.post('/admin/broadcast', async (req, res) => {
     if (!message) return res.status(400).json({ success: false, message: 'Mesaj boş olamaz' });
 
     try {
-        const response = await fetch("https://onesignal.com/api/v1/notifications", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json; charset=utf-8",
-                "Authorization": `Basic ${ONESIGNAL_REST_API_KEY}`
-            },
-            body: JSON.stringify({
-                app_id: ONESIGNAL_APP_ID,
-                included_segments: ["All"], // Tüm kullanıcılara
-                headings: { "en": "Sistem Duyurusu", "tr": "Sistem Duyurusu" },
-                contents: { "en": message, "tr": message },
-                android_channel_id: "system_notifications"
-            })
-        });
-        const d = await response.json();
-        res.json({ success: true, response: d, recipientCount: d.recipients || 0 });
+        const d = await sendPush("All", "Sistem Duyurusu", message, { type: 'broadcast' });
+        res.json({ success: true, response: d, recipientCount: d?.recipients || 0 });
     } catch (e) {
         console.error('[Broadcast] Failed:', e);
         res.status(500).json({ success: false, error: e.message });

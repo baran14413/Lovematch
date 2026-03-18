@@ -540,8 +540,10 @@ function AppLayout() {
                     }}
                     style={{
                         position: 'fixed', top: 20, left: 16, right: 16, zIndex: 9999,
-                        background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(12px)',
-                        padding: 16, borderRadius: 20, border: '1px solid rgba(139, 92, 246, 0.3)',
+                        background: globalToast.data?.type === 'error' ? 'rgba(127, 29, 29, 0.95)' : 'rgba(15, 23, 42, 0.95)',
+                        backdropFilter: 'blur(12px)',
+                        padding: 16, borderRadius: 20,
+                        border: globalToast.data?.type === 'error' ? '1px solid #ef4444' : '1px solid rgba(139, 92, 246, 0.3)',
                         boxShadow: '0 12px 32px rgba(0,0,0,0.4)', display: 'flex', gap: 12,
                         animation: 'fadeInDown 0.4s cubic-bezier(0.16, 1, 0.3, 1)', cursor: 'pointer'
                     }}

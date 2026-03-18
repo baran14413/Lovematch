@@ -17,6 +17,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { pb } from '../pb';
+import { cleanText, updateBadWordsList } from '../utils/filter';
 
 /**
  * =========================================================================
@@ -63,9 +64,21 @@ class FirebaseSocketEmulator {
 
     constructor(private uid: string) {
         this.id = uid; // uid'yi socket id olarak kullanıyoruz (stabilite için)
+        this.fetchFilters();
         this.listenForDMs();
         this.listenForSystemNotifications();
         this.listenForWebRTCSignals();
+    }
+
+    private async fetchFilters() {
+        try {
+            const docSnap = await getDoc(doc(db, 'settings', 'filters'));
+            if (docSnap.exists()) {
+                updateBadWordsList(docSnap.data().badWords || []);
+            }
+        } catch (e) {
+            console.warn('[Socket] Filters load error:', e);
+        }
     }
 
     // ─── WebRTC Sinyallerini Dinle ───
@@ -182,8 +195,9 @@ class FirebaseSocketEmulator {
         if (event === 'auth') { this.handleAuth(data); return; }
 
         if (event === 'create_room' && data?.name) {
+            const filteredName = cleanText(data.name);
             const roomData = {
-                name: data.name,
+                name: filteredName,
                 ownerUid: this.uid,
                 ownerName: pb.authStore.model?.username || 'Kullanıcı',
                 ownerAvatar: pb.authStore.model?.avatar || '',
@@ -235,7 +249,7 @@ class FirebaseSocketEmulator {
                     id: Math.random().toString(36).slice(2),
                     uid: this.uid,
                     username: pb.authStore.model?.username || 'Kullanıcı',
-                    text: typeof data === 'string' ? data : (data?.text || JSON.stringify(data)),
+                    text: cleanText(typeof data === 'string' ? data : (data?.text || '')),
                     timestamp: Date.now()
                 }),
                 updated: serverTimestamp()
@@ -368,10 +382,14 @@ class FirebaseSocketEmulator {
         }
 
         if (event === 'webrtc_signal' && data.to) {
+            // FIREBASE FIX: Sinyal verisi RTCIceCandidate veya RTCSessionDescription olabilir.
+            // Firestore bunları kabul etmez, bu yüzden düz nesneye çeviriyoruz.
+            const sanitizedSignal = data.signal?.toJSON ? data.signal.toJSON() : JSON.parse(JSON.stringify(data.signal || {}));
+
             addDoc(collection(db, 'signaling'), {
                 fromUid: this.uid,
                 toUid: data.to,
-                signal: data.signal,
+                signal: sanitizedSignal,
                 signalType: data.type,
                 timestamp: serverTimestamp()
             }).catch(() => { });
@@ -410,6 +428,28 @@ class FirebaseSocketEmulator {
                 read: false,
                 timestamp: serverTimestamp()
             });
+            return;
+        }
+
+        if (event === 'join_1v1_pool') {
+            fetch('/api/1v1/join', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    uid: this.uid,
+                    name: pb.authStore.model?.username || 'Kullanıcı',
+                    avatar: pb.authStore.model?.avatar ? pb.files.getUrl(pb.authStore.model, pb.authStore.model.avatar) : ''
+                })
+            }).catch(() => { });
+            return;
+        }
+
+        if (event === 'leave_1v1_pool') {
+            fetch('/api/1v1/leave', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uid: this.uid })
+            }).catch(() => { });
             return;
         }
 
