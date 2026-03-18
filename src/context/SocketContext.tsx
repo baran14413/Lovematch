@@ -124,12 +124,12 @@ class FirebaseSocketEmulator {
         this.unsubscribers.set('dms', unsub);
     }
 
-    // ─── Sistem Bildirimleri ───
+    // ─── Sistem ve Sosyal Bildirimler ───
     private listenForSystemNotifications() {
         if (!this.uid) return;
         const q = query(
             collection(db, 'notifications'),
-            where('toUid', '==', this.uid),
+            where('user', '==', this.uid),
             where('read', '==', false)
         );
 
@@ -137,9 +137,16 @@ class FirebaseSocketEmulator {
             snapshot.docChanges().forEach(async (change) => {
                 if (change.type === 'added') {
                     const data = change.doc.data();
-                    if (data.type === 'system' || data.type === 'broadcast') {
-                        this.emit_local('system_notification', { title: data.title, body: data.body });
+                    // System, broadcast veya arkadaşlık, beğeni gibi tüm bildirimler
+                    if (data.title) {
+                        try {
+                            const parsedData = typeof data.data === 'string' ? JSON.parse(data.data) : (data.data || {});
+                            this.emit_local('system_notification', { title: data.title, body: data.body, data: { ...parsedData, type: data.type } });
+                        } catch (e) {
+                            this.emit_local('system_notification', { title: data.title, body: data.body, data: { type: data.type } });
+                        }
                     }
+                    // Okundu olarak işaretle ki bir daha UI'da çıkmasın
                     updateDoc(change.doc.ref, { read: true }).catch(() => { });
                 }
             });
