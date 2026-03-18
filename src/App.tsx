@@ -6,12 +6,11 @@ let OneSignal: any = null;
 // Güvenli init: sadece native Capacitor ortamında yükle
 (async () => {
     try {
-        if (typeof window !== 'undefined' && 'Capacitor' in window) {
+        if (typeof window !== 'undefined' && 'Capacitor' in window && (window as any).Capacitor.getPlatform() !== 'web') {
             const mod = await import('onesignal-cordova-plugin');
             OneSignal = mod.default;
         }
     } catch (e) {
-        // Web ortamında OneSignal yoksa sessizce geç - uygulama çöküyor yoksa!
         console.warn('[OneSignal] Native plugin web ortamında mevcut değil (normal)');
     }
 })();
@@ -627,7 +626,7 @@ function AppInner() {
     useEffect(() => {
         // OneSignal Bildirim Servisi Başlatma
         try {
-            if (OneSignal && typeof OneSignal.initialize === 'function') {
+            if (OneSignal && typeof OneSignal.initialize === 'function' && (window as any).Capacitor?.getPlatform() !== 'web') {
                 OneSignal.initialize("dac0906c-e76a-46d4-bf59-4702ddc2cf70");
                 if (OneSignal.Notifications && typeof OneSignal.Notifications.requestPermission === 'function') {
                     OneSignal.Notifications.requestPermission(true);
@@ -665,7 +664,7 @@ function AppInner() {
     // OneSignal User Login/Logout - kullanıcı durumuna göre
     useEffect(() => {
         try {
-            if (OneSignal && typeof OneSignal.login === 'function') {
+            if (OneSignal && typeof OneSignal.login === 'function' && (window as any).Capacitor?.getPlatform() !== 'web') {
                 if (user && user.id) {
                     OneSignal.login(user.id);
                 } else if (typeof OneSignal.logout === 'function') {

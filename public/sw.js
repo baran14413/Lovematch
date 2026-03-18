@@ -2,8 +2,7 @@ const CACHE_NAME = 'lovematch-pwa-v2';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
-    '/manifest.json',
-    '/src/main.tsx' // Add something to trigger re-fetch but build assets are hashed anyway
+    '/manifest.json'
 ];
 
 self.addEventListener('install', (e) => {
