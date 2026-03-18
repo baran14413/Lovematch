@@ -100,8 +100,7 @@ class FirebaseSocketEmulator {
         const q = query(
             collection(db, 'direct_messages'),
             where('toUid', '==', this.uid),
-            where('read', '==', false),
-            orderBy('timestamp', 'desc')
+            where('read', '==', false)
         );
 
         const unsub = onSnapshot(q, (snapshot) => {

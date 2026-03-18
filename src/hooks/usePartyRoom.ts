@@ -308,7 +308,12 @@ export function usePartyRoom(roomId: string) {
     useEffect(() => {
         if (!socket) return;
 
-        const onSnapshot = (data: any) => {
+        const onSnapshot = (raw: any) => {
+            const data = {
+                ...raw,
+                seats: raw.seats || new Array(raw.maxSeatCount || 8).fill(null),
+                lockedSeats: raw.lockedSeats || new Array(raw.maxSeatCount || 8).fill(false)
+            };
             setRoomState(data);
             setChat((data.messages || []).slice(-50));
             setIsLoading(false);
