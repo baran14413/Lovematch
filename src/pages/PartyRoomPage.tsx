@@ -209,8 +209,20 @@ export function PartyRoomPage({ onRoomJoin }: { onRoomJoin?: (id: string, name: 
     const [followedRooms, setFollowedRooms] = useState<Set<string>>(new Set());
     // Seçili oda detay paneli (BilgiPaneli)
     const [selectedRoomDetail, setSelectedRoomDetail] = useState<any | null>(null);
+    const [selectedRoomDetail, setSelectedRoomDetail] = useState<any | null>(null);
     const [showTournament, setShowTournament] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [myRoomId, setMyRoomId] = useState<string | null>(null);
     const navigate = useNavigate();
+
+    const MOCK_WOMEN_ROOMS = [
+        { id: 'm1', name: 'Kız Kıza Gıybet 💅', ownerName: 'Aysun', ownerAvatar: '/assets/mia.png', viewerCount: 142, seatedCount: 4, boostLevel: 3, isMock: true },
+        { id: 'm2', name: 'Dert Ortağı Aranıyor ☕', ownerName: 'Selinay', ownerAvatar: '/assets/zoe.png', viewerCount: 89, seatedCount: 2, boostLevel: 2, isMock: true },
+        { id: 'm3', name: 'Pop Müzik Saati 🎵', ownerName: 'Melisa', ownerAvatar: '/assets/lily.png', viewerCount: 210, seatedCount: 6, boostLevel: 1, isMock: true },
+        { id: 'm4', name: 'Yalnızlık Paylaşılır ✨', ownerName: 'Zeynep', ownerAvatar: '/assets/mia.png', viewerCount: 54, seatedCount: 1, boostLevel: 2, isMock: true },
+        { id: 'm5', name: 'Oyun Arkadaşı 🎮', ownerName: 'Ece', ownerAvatar: '/assets/lily.png', viewerCount: 121, seatedCount: 3, boostLevel: 1, isMock: true },
+        { id: 'm6', name: 'Moda ve Güzellik 💄', ownerName: 'Damla', ownerAvatar: '/assets/zoe.png', viewerCount: 67, seatedCount: 5, boostLevel: 3, isMock: true }
+    ];
 
     // Odaları Firebase'den çekme fonksiyonu
     const fetchRooms = async () => {
@@ -233,9 +245,11 @@ export function PartyRoomPage({ onRoomJoin }: { onRoomJoin?: (id: string, name: 
                 };
             });
 
-            setRooms(formattedRooms);
+            const allRooms = [...formattedRooms, ...MOCK_WOMEN_ROOMS];
+            setRooms(allRooms);
             const myRoom = formattedRooms.find((r: any) => r.ownerUid === pb.authStore.model?.id);
             setUserHasRoom(!!myRoom);
+            if (myRoom) setMyRoomId(myRoom.id);
         } catch (err) {
             console.error("Lobi Hatası (Firestore):", err);
         } finally {
@@ -308,20 +322,39 @@ export function PartyRoomPage({ onRoomJoin }: { onRoomJoin?: (id: string, name: 
     return (
         <div className="lm-lobby-container no-scrollbar">
             <FloatingLobbyBackground />
-            <header className="lm-lobby-header">
-                <div className="title-section">
-                    <h1 className="gradient-text">{t('lobby_title')}</h1>
-                    <p>{t('lobby_sub')}</p>
+            <header className="lm-lobby-header" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 15 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="title-section">
+                        <h1 className="gradient-text">{t('lobby_title')}</h1>
+                        <p>{t('lobby_sub')}</p>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        {userHasRoom ? (
+                            <button className="create-btn-main" style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }} onClick={() => onRoomJoin?.(myRoomId!, rooms.find(r => r.id === myRoomId)?.name || 'Odama Git', '🎙️')}>
+                                <i className="fa-solid fa-house-user"></i>
+                                <span>Odam</span>
+                            </button>
+                        ) : (
+                            <button className="create-btn-main" onClick={() => setShowCreateModal(true)}>
+                                <i className="fa-solid fa-plus"></i>
+                                <span>{t('create_room')}</span>
+                            </button>
+                        )}
+                        <button className="create-btn-main" style={{ background: 'rgba(255, 215, 0, 0.15)', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.3)' }} onClick={() => setShowTournament(true)}>
+                            <i className="fa-solid fa-trophy" style={{ animation: 'bounce 2s infinite' }}></i>
+                        </button>
+                    </div>
                 </div>
-                {!userHasRoom && (
-                    <button className="create-btn-main" onClick={() => setShowCreateModal(true)}>
-                        <i className="fa-solid fa-plus"></i>
-                        <span>{t('create_room')}</span>
-                    </button>
-                )}
-                <button className="create-btn-main" style={{ marginLeft: 10, background: 'rgba(255, 215, 0, 0.15)', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.3)' }} onClick={() => setShowTournament(true)}>
-                    <i className="fa-solid fa-trophy" style={{ animation: 'bounce 2s infinite' }}></i>
-                </button>
+
+                <div className="search-bar-v9">
+                    <i className="fa-solid fa-magnifying-glass"></i>
+                    <input
+                        type="text"
+                        placeholder="Oda veya kullanıcı ara..."
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                    />
+                </div>
             </header>
 
             {/* Turnuvalar Modal */}
@@ -339,85 +372,87 @@ export function PartyRoomPage({ onRoomJoin }: { onRoomJoin?: (id: string, name: 
             <div className="lm-lobby-grid">
                 {loading ? (
                     <div className="loader-box"><div className="p-loader"></div></div>
-                ) : rooms.length === 0 ? (
+                ) : (rooms.filter(r => r.name.toLowerCase().includes(searchQuery.toLowerCase()) || r.ownerName.toLowerCase().includes(searchQuery.toLowerCase())).length === 0) ? (
                     <div className="no-rooms">
                         <div className="empty-icon">🏜️</div>
-                        <p>{t('no_rooms')}</p>
+                        <p>{searchQuery ? 'Aradığın kriterlerde oda bulunamadı.' : t('no_rooms')}</p>
                     </div>
                 ) : (
                     // Odaları izleyici sayısına göre sıralayıp listele
-                    [...rooms].sort((a, b) => (b.viewerCount || 0) - (a.viewerCount || 0)).map((room, i) => (
-                        <div
-                            key={room.id}
-                            className="room-card-v9"
-                            onClick={() => onRoomJoin?.(room.id, room.name, '🎙️')}
-                        >
-                            <div className="room-visual">
-                                <div className="overlay-tags">
-                                    <span className="tag-viewer">
-                                        <i className="fa-solid fa-user"></i> {room.viewerCount}
-                                    </span>
-                                    {room.seatedCount > 0 && (
-                                        <span className="tag-mic">
-                                            <i className="fa-solid fa-microphone"></i> {room.seatedCount}
+                    rooms
+                        .filter(r => r.name.toLowerCase().includes(searchQuery.toLowerCase()) || r.ownerName.toLowerCase().includes(searchQuery.toLowerCase()))
+                        .sort((a, b) => (b.viewerCount || 0) - (a.viewerCount || 0)).map((room, i) => (
+                            <div
+                                key={room.id}
+                                className="room-card-v9"
+                                onClick={() => onRoomJoin?.(room.id, room.name, '🎙️')}
+                            >
+                                <div className="room-visual">
+                                    <div className="overlay-tags">
+                                        <span className="tag-viewer">
+                                            <i className="fa-solid fa-user"></i> {room.viewerCount}
                                         </span>
-                                    )}
-                                </div>
-                                <div className="room-avatar-bg" style={{
-                                    background: `linear-gradient(45deg, ${['#8b5cf6', '#ec4899', '#3b82f6', '#10b981'][i % 4]}44, #000)`
-                                }}>
-                                    {room.ownerAvatar ? (
-                                        <img src={room.ownerAvatar} alt="" />
-                                    ) : (
-                                        <span className="emoji">{['🎤', '🎧', '🔥', '🎮', '💃', '핺'][i % 6]}</span>
-                                    )}
-                                </div>
-                                {/* Uyku Modu Etiketi */}
-                                {room.isSleeping && (
-                                    <div className="sleep-tag">
-                                        <i className="fa-solid fa-moon"></i> <span>{t('sleeping')}</span>
-                                    </div>
-                                )}
-
-                                {/* Boost Seviye Rozeti */}
-                                {room.boostLevel > 1 && (
-                                    <div className={`boost-badge boost-lv${room.boostLevel}`}>
-                                        {room.boostLevel === 3 ? '💥' : '⚡'} LV{room.boostLevel}
-                                    </div>
-                                )}
-                            </div>
-                            <div className="room-info-v9">
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    {/* Oda adına tıklayinca detay panel açılır, kart tıklaması odaya girer */}
-                                    <h3 className="room-name-v9"
-                                        style={{ flex: 1, cursor: 'pointer' }}
-                                        onClick={(e) => { e.stopPropagation(); setSelectedRoomDetail(room); }}
-                                    >
-                                        {room.name} <i className="fa-solid fa-circle-info" style={{ fontSize: 9, color: '#555', marginLeft: 4 }}></i>
-                                    </h3>
-                                    {/* Sol üstteki Takip Et Butonu */}
-                                    <button
-                                        className={`follow-room-btn ${followedRooms.has(room.id) ? 'following' : ''}`}
-                                        onClick={(e) => toggleFollow(e, room.id)}
-                                    >
-                                        {followedRooms.has(room.id) ? (
-                                            <><i className="fa-solid fa-heart"></i> {t('following')}</>
-                                        ) : (
-                                            <><i className="fa-regular fa-heart"></i> {t('follow')}</>
+                                        {room.seatedCount > 0 && (
+                                            <span className="tag-mic">
+                                                <i className="fa-solid fa-microphone"></i> {room.seatedCount}
+                                            </span>
                                         )}
-                                    </button>
-                                </div>
-                                <div className="owner-info">
-                                    <span className="owner-name">@{room.ownerName}</span>
-                                    {room.maxViewers && (
-                                        <span style={{ fontSize: 9, color: '#555', fontWeight: 700 }}>
-                                            👤 {room.viewerCount}/{room.maxViewers}
-                                        </span>
+                                    </div>
+                                    <div className="room-avatar-bg" style={{
+                                        background: `linear-gradient(45deg, ${['#8b5cf6', '#ec4899', '#3b82f6', '#10b981'][i % 4]}44, #000)`
+                                    }}>
+                                        {room.ownerAvatar ? (
+                                            <img src={room.ownerAvatar} alt="" />
+                                        ) : (
+                                            <span className="emoji">{['🎤', '🎧', '🔥', '🎮', '💃', '핺'][i % 6]}</span>
+                                        )}
+                                    </div>
+                                    {/* Uyku Modu Etiketi */}
+                                    {room.isSleeping && (
+                                        <div className="sleep-tag">
+                                            <i className="fa-solid fa-moon"></i> <span>{t('sleeping')}</span>
+                                        </div>
+                                    )}
+
+                                    {/* Boost Seviye Rozeti */}
+                                    {room.boostLevel > 1 && (
+                                        <div className={`boost-badge boost-lv${room.boostLevel}`}>
+                                            {room.boostLevel === 3 ? '💥' : '⚡'} LV{room.boostLevel}
+                                        </div>
                                     )}
                                 </div>
+                                <div className="room-info-v9">
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        {/* Oda adına tıklayinca detay panel açılır, kart tıklaması odaya girer */}
+                                        <h3 className="room-name-v9"
+                                            style={{ flex: 1, cursor: 'pointer' }}
+                                            onClick={(e) => { e.stopPropagation(); setSelectedRoomDetail(room); }}
+                                        >
+                                            {room.name} <i className="fa-solid fa-circle-info" style={{ fontSize: 9, color: '#555', marginLeft: 4 }}></i>
+                                        </h3>
+                                        {/* Sol üstteki Takip Et Butonu */}
+                                        <button
+                                            className={`follow-room-btn ${followedRooms.has(room.id) ? 'following' : ''}`}
+                                            onClick={(e) => toggleFollow(e, room.id)}
+                                        >
+                                            {followedRooms.has(room.id) ? (
+                                                <><i className="fa-solid fa-heart"></i> {t('following')}</>
+                                            ) : (
+                                                <><i className="fa-regular fa-heart"></i> {t('follow')}</>
+                                            )}
+                                        </button>
+                                    </div>
+                                    <div className="owner-info">
+                                        <span className="owner-name">@{room.ownerName}</span>
+                                        {room.maxViewers && (
+                                            <span style={{ fontSize: 9, color: '#555', fontWeight: 700 }}>
+                                                👤 {room.viewerCount}/{room.maxViewers}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    )))
+                        )))
                 }
             </div>
 
@@ -540,6 +575,36 @@ export function PartyRoomPage({ onRoomJoin }: { onRoomJoin?: (id: string, name: 
                 .gradient-text { font-size: 32px; font-weight: 950; background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0; letter-spacing: -1px; }
                 .lm-lobby-header p { color: #888; font-size: 14px; margin: 5px 0 0; font-weight: 600; }
                 
+                .search-bar-v9 {
+                    position: relative;
+                    z-index: 10;
+                    background: rgba(255,255,255,0.03);
+                    border: 1px solid rgba(255,255,255,0.08);
+                    border-radius: 16px;
+                    display: flex;
+                    align-items: center;
+                    padding: 4px 16px;
+                    gap: 12px;
+                    transition: 0.3s;
+                }
+                .search-bar-v9:focus-within {
+                    background: rgba(255,255,255,0.06);
+                    border-color: rgba(139, 92, 246, 0.3);
+                    box-shadow: 0 0 20px rgba(139, 92, 246, 0.1);
+                }
+                .search-bar-v9 i { color: #555; font-size: 14px; }
+                .search-bar-v9 input {
+                    flex: 1;
+                    background: none;
+                    border: none;
+                    color: #fff;
+                    font-size: 14px;
+                    font-weight: 600;
+                    padding: 10px 0;
+                    outline: none;
+                }
+                .search-bar-v9 input::placeholder { color: #444; }
+
                 .create-btn-main { display: flex; align-items: center; gap: 8px; background: var(--premium-gradient); border: none; padding: 10px 16px; border-radius: 16px; color: #fff; font-weight: 800; cursor: pointer; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 10px 20px rgba(168, 85, 247, 0.3); }
                 .create-btn-main:active { transform: scale(0.9); }
                 .create-btn-main i { font-size: 18px; }
