@@ -207,6 +207,8 @@ export function PartyRoomPage({ onRoomJoin }: { onRoomJoin?: (id: string, name: 
     const [seatCount, setSeatCount] = useState(8);
     // Kullanıcının takip ettiği odaları lokal tutuyoruz
     const [followedRooms, setFollowedRooms] = useState<Set<string>>(new Set());
+    // Seçili oda detay paneli (BilgiPaneli)
+    const [selectedRoomDetail, setSelectedRoomDetail] = useState<any | null>(null);
     const [showTournament, setShowTournament] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [myRoomId, setMyRoomId] = useState<string | null>(null);
