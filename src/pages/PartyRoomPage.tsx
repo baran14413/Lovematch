@@ -381,11 +381,31 @@ export function PartyRoomPage({ onRoomJoin }: { onRoomJoin?: (id: string, name: 
                     // Odaları izleyici sayısına göre sıralayıp listele
                     rooms
                         .filter(r => r.name.toLowerCase().includes(searchQuery.toLowerCase()) || r.ownerName.toLowerCase().includes(searchQuery.toLowerCase()))
-                        .sort((a, b) => (b.viewerCount || 0) - (a.viewerCount || 0)).map((room, i) => (
+                        .sort((a, b) => {
+                            // Gerçek ve boş odaları en üste al
+                            if (!a.isMock && !b.isMock) {
+                                if (a.viewerCount === 0 && b.viewerCount > 0) return -1;
+                                if (a.viewerCount > 0 && b.viewerCount === 0) return 1;
+                                return (b.viewerCount || 0) - (a.viewerCount || 0);
+                            }
+                            // Gerçek odalar mock odalardan önce gelir
+                            if (!a.isMock && b.isMock) return -1;
+                            if (a.isMock && !b.isMock) return 1;
+                            // Mock odalar kendi içinde izleyici sayısına göre
+                            return (b.viewerCount || 0) - (a.viewerCount || 0);
+                        }).map((room, i) => (
                             <div
                                 key={room.id}
-                                className="room-card-v9"
-                                onClick={() => onRoomJoin?.(room.id, room.name, '🎙️')}
+                                className={`room-card-v9 ${room.isMock ? 'mock-room' : ''}`}
+                                onClick={() => {
+                                    if (room.isMock) {
+                                        window.dispatchEvent(new CustomEvent('in-app-notification', {
+                                            detail: { title: 'Oda Dolu', body: 'Bu oda şu an tam kapasitede çalışıyor. Lütfen diğer odalara göz atın! 🎙️' }
+                                        }));
+                                        return;
+                                    }
+                                    onRoomJoin?.(room.id, room.name, '🎙️');
+                                }}
                             >
                                 <div className="room-visual">
                                     <div className="overlay-tags">
