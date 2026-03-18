@@ -444,34 +444,27 @@ export function usePartyRoom(roomId: string) {
     const toggleMic = useCallback(async () => {
         try {
             if (!isMicOn) {
-                // SES IZNI AL/AC
-                let stream = localStream.current;
-
-                // Eğer hiç stream yoksa yeni oluştur
-                if (!stream) {
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        audio: AUDIO_CONSTRAINTS,
-                        video: isCameraOn ? true : false
-                    });
-                    localStream.current = stream;
-                } else {
-                    // Zaten stream varsa ve audio track yoksa ekle
-                    if (stream.getAudioTracks().length === 0) {
-                        const audioStream = await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS });
-                        const audioTrack = audioStream.getAudioTracks()[0];
-                        stream.addTrack(audioTrack);
-                    }
-                    stream.getAudioTracks().forEach(t => t.enabled = true);
+                // If there's an existing stream, we stop it first to ensure a clean start
+                // (This is what the user observed to be fixing the sound when camera is opened)
+                if (localStream.current) {
+                    localStream.current.getTracks().forEach(t => t.stop());
+                    localStream.current = null;
                 }
 
-                // Peer'lerdeki audio track'i güncelle
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: AUDIO_CONSTRAINTS,
+                    video: false // Camera disabled for now as requested
+                });
+                localStream.current = stream;
+
+                // Sync with existing peers
                 const audioTrack = stream.getAudioTracks()[0];
                 peers.current.forEach(pc => {
                     const sender = pc.getSenders().find(s => s.track?.kind === 'audio');
                     if (sender) {
                         sender.replaceTrack(audioTrack);
                     } else {
-                        pc.addTrack(audioTrack, stream!);
+                        pc.addTrack(audioTrack, stream);
                     }
                 });
 
@@ -481,7 +474,6 @@ export function usePartyRoom(roomId: string) {
                 socket?.emit('speaking_state', 10);
                 socket?.emit('peer_mic_on', { roomId });
             } else {
-                // Mikrofon kapat (duraklat)
                 localStream.current?.getAudioTracks().forEach(t => t.enabled = false);
                 micOnRef.current = false;
                 setIsMicOn(false);
@@ -491,65 +483,17 @@ export function usePartyRoom(roomId: string) {
         } catch (err: any) {
             console.error('[Mic] Toggle failed:', err);
             if (err.name === 'NotAllowedError') {
-                setError('Mikrofon izni reddedildi. Lütfen tarayıcı/telefon ayarlarından izin verin.');
+                setError('Mikrofon izni reddedildi.');
             }
         }
-    }, [isMicOn, isCameraOn, socket, startVoiceDetection, roomState, sendOffer, roomId]);
+    }, [isMicOn, socket, startVoiceDetection, roomId]);
 
     // Kamera aç/kapat
     const toggleCamera = useCallback(async () => {
-        try {
-            if (!isCameraOn) {
-                let stream = localStream.current;
-
-                if (!stream) {
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        audio: isMicOn ? AUDIO_CONSTRAINTS : false,
-                        video: {
-                            width: { ideal: 640 },
-                            height: { ideal: 480 },
-                            frameRate: { ideal: 24 }
-                        }
-                    });
-                    localStream.current = stream;
-                } else {
-                    if (stream.getVideoTracks().length === 0) {
-                        const videoStream = await navigator.mediaDevices.getUserMedia({
-                            video: {
-                                width: { ideal: 640 },
-                                height: { ideal: 480 },
-                                frameRate: { ideal: 24 }
-                            }
-                        });
-                        const videoTrack = videoStream.getVideoTracks()[0];
-                        stream.addTrack(videoTrack);
-                    }
-                    stream.getVideoTracks().forEach(t => t.enabled = true);
-                }
-
-                // Peer'lerdeki video track'i güncelle
-                const videoTrack = stream.getVideoTracks()[0];
-                peers.current.forEach(pc => {
-                    const sender = pc.getSenders().find(s => s.track?.kind === 'video');
-                    if (sender) {
-                        sender.replaceTrack(videoTrack);
-                    } else {
-                        pc.addTrack(videoTrack, stream!);
-                    }
-                });
-
-                setIsCameraOn(true);
-            } else {
-                localStream.current?.getVideoTracks().forEach(t => t.enabled = false);
-                setIsCameraOn(false);
-            }
-        } catch (err: any) {
-            console.error('[Camera] Toggle failed:', err);
-            if (err.name === 'NotAllowedError') {
-                setError('Kamera izni reddedildi.');
-            }
-        }
-    }, [isCameraOn, isMicOn, socket, startVoiceDetection, roomState, sendOffer]);
+        // Camera functionality disabled for now to fix audio issues as requested
+        alert('Kamera özelliği şu an için hazırlık aşamasında devre dışı bırakılmıştır.');
+        return;
+    }, []);
 
     // Koltuğa otururken otomatik mikrofon açma
     // Koltuktan kalkınca mikrofonu kapat
