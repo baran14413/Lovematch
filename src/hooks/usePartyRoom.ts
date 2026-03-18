@@ -83,6 +83,20 @@ export function usePartyRoom(roomId: string) {
         setRemoteStreamsState(new Map(remoteStreamsRef.current));
     }, []);
 
+    // ICE candidate kuyruğu - remote description olmadan ICE ekleme engeli
+    const iceCandidateQueue = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
+
+    // Bekleyen ICE candidate'leri ekle
+    const flushIceCandidates = useCallback(async (pc: RTCPeerConnection, socketId: string) => {
+        const queued = iceCandidateQueue.current.get(socketId) || [];
+        iceCandidateQueue.current.delete(socketId);
+        for (const c of queued) {
+            await pc.addIceCandidate(new RTCIceCandidate(c)).catch(e =>
+                console.warn('[ICE] Queue flush failed:', e)
+            );
+        }
+    }, []);
+
     // Peer bağlantısı oluştur
     const createPeer = useCallback((targetSocketId: string, stream?: MediaStream) => {
         // Eğer zaten bağlı bir PC varsa tekrar oluşturma
@@ -174,10 +188,14 @@ export function usePartyRoom(roomId: string) {
             if (type === 'offer') {
                 // Teklifi al ve cevap oluştur
                 const pc = createPeer(from, localStream.current || undefined);
-                if (pc.signalingState !== 'stable') {
-                    console.warn('[WebRTC] Offer received but not stable:', pc.signalingState);
+                // Tüm sinyalleme durumlarını kontrol et
+                if (pc.signalingState === 'have-local-offer') {
+                    // Rollback yaparak stable durumuna dön
+                    await pc.setLocalDescription({ type: 'rollback' }).catch(() => { });
                 }
                 await pc.setRemoteDescription(new RTCSessionDescription(signal));
+                // Bekleyen ICE candidate'leri flush et
+                await flushIceCandidates(pc, from);
                 const answer = await pc.createAnswer({
                     offerToReceiveAudio: true,
                     offerToReceiveVideo: true
@@ -189,20 +207,28 @@ export function usePartyRoom(roomId: string) {
                 const pc = peers.current.get(from);
                 if (pc && pc.signalingState === 'have-local-offer') {
                     await pc.setRemoteDescription(new RTCSessionDescription(signal));
+                    // Bekleyen ICE candidate'leri flush et
+                    await flushIceCandidates(pc, from);
                 }
 
             } else if (type === 'ice') {
                 const pc = peers.current.get(from);
-                if (pc && pc.remoteDescription) {
+                if (pc && pc.remoteDescription && pc.remoteDescription.type) {
+                    // Remote description var, direkt ekle
                     await pc.addIceCandidate(new RTCIceCandidate(signal)).catch(e =>
                         console.warn('[ICE] Candidate add failed:', e)
                     );
+                } else {
+                    // Remote description yok, kuyruğa al
+                    const q = iceCandidateQueue.current.get(from) || [];
+                    q.push(signal);
+                    iceCandidateQueue.current.set(from, q);
                 }
             }
         } catch (e) {
             console.error('[WebRTC] Signal error:', e);
         }
-    }, [socket, createPeer]);
+    }, [socket, createPeer, flushIceCandidates]);
 
     // Diğer kişiye offer gönder
     const sendOffer = useCallback(async (targetSocketId: string) => {
@@ -309,13 +335,16 @@ export function usePartyRoom(roomId: string) {
         };
 
         const onPeerMicOn = (data: any) => {
-            // Karşı taraf mic açtı → ondan offer iste
-            if (data.socketId) socket.emit('request_offer', { to: data.socketId });
+            // Karşı taraf mic açtı → SADECE biz de aktif stream varsa offer gönder
+            // (sonsuz döngü / çarpma engellemek için)
+            if (data.socketId && localStream.current) {
+                socket.emit('request_offer', { to: data.socketId });
+            }
         };
 
         const onRequestOffer = (data: any) => {
-            // Benden offer istendi → gönder
-            if ((isMicOn || isCameraOn) && localStream.current) {
+            // Benden offer istendi → sadece stream varsa gönder
+            if (localStream.current) {
                 sendOffer(data.from);
             }
         };
@@ -481,19 +510,31 @@ export function usePartyRoom(roomId: string) {
         }
     }, [isCameraOn, isMicOn, socket, startVoiceDetection, roomState, sendOffer]);
 
-    // Koltuğa otururken otomatik mikrofon
+    // Koltuğa otururken otomatik mikrofon açma
+    // Koltuktan kalkınca mikrofonu kapat
     const prevIsSeatedRef = useRef(false);
     useEffect(() => {
-        const isSeated = roomState?.seats?.some((s: any) => s && s.uid === pb.authStore.model?.id);
-        if (isSeated && !prevIsSeatedRef.current) {
-            if (!isMicOn && !roomState?.mutedUsers?.includes(pb.authStore.model?.id)) {
+        if (!roomState?.seats) return;
+        const myUid = pb.authStore.model?.id;
+        if (!myUid) return;
+
+        const isSeated = roomState.seats.some((s: any) => s && s.uid === myUid);
+        const wasPreviouslySeated = prevIsSeatedRef.current;
+
+        if (isSeated && !wasPreviouslySeated) {
+            // Yeni koltuğa oturuldu: susturulmamışsa mikrofonu aç
+            if (!isMicOn && !roomState?.mutedUsers?.includes(myUid)) {
                 toggleMic();
             }
-        } else if (!isSeated && prevIsSeatedRef.current && isMicOn) {
-            toggleMic();
+        } else if (!isSeated && wasPreviouslySeated) {
+            // Koltuktan kalkıldı: mikrofonu kapat
+            if (isMicOn) toggleMic();
         }
-        prevIsSeatedRef.current = !!isSeated;
-    }, [roomState?.seats, roomState?.mutedUsers, isMicOn, toggleMic]);
+
+        prevIsSeatedRef.current = isSeated;
+        // roomState.seats değişince kontrol et; toggle bağımlılığı döngü yaratmamasın diye seats string'e serialize ediyoruz
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [JSON.stringify(roomState?.seats)]);
 
     // Odadan ayrıl
     const leaveRoom = useCallback(() => {

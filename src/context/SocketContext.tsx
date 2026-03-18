@@ -225,13 +225,22 @@ class FirebaseSocketEmulator {
                 if (snap.exists()) {
                     const roomsData = snap.data();
                     const seats = [...roomsData.seats];
+                    // Zaten bir koltukta mı?
+                    const existingIndex = seats.findIndex(s => s?.uid === this.uid);
+                    if (existingIndex !== -1) {
+                        seats[existingIndex] = null;
+                    }
+
                     seats[data] = {
                         uid: this.uid,
                         socketId: this.id,
                         username: pb.authStore.model?.username || 'Kullanıcı',
                         avatar: pb.authStore.model?.avatar || ''
                     };
-                    updateDoc(snap.ref, { seats, seatedCount: increment(1) });
+                    updateDoc(snap.ref, {
+                        seats,
+                        seatedCount: seats.filter(s => s !== null).length
+                    });
                 }
             });
             return;
@@ -242,7 +251,94 @@ class FirebaseSocketEmulator {
                 if (snap.exists()) {
                     const roomsData = snap.data();
                     const seats = roomsData.seats.map((s: any) => s?.uid === this.uid ? null : s);
-                    updateDoc(snap.ref, { seats, seatedCount: increment(-1) });
+                    updateDoc(snap.ref, {
+                        seats,
+                        seatedCount: seats.filter(s => s !== null).length
+                    });
+                }
+            });
+            return;
+        }
+
+        if (event === 'admin_action' && this.currentRoomId) {
+            const { action, targetUid, seatIndex } = data;
+            getDoc(doc(db, 'rooms', this.currentRoomId)).then(snap => {
+                if (!snap.exists()) return;
+                const roomData = snap.data();
+
+                // Admin kontrolü
+                const isAdmin = roomData.admins?.includes(this.uid) || roomData.ownerUid === this.uid;
+                if (!isAdmin) return;
+
+                const updates: any = {};
+
+                if (action === 'lock_seat' && typeof seatIndex === 'number') {
+                    const lockedSeats = roomData.lockedSeats || {};
+                    lockedSeats[seatIndex] = true;
+                    updates.lockedSeats = lockedSeats;
+                } else if (action === 'unlock_seat' && typeof seatIndex === 'number') {
+                    const lockedSeats = roomData.lockedSeats || {};
+                    delete lockedSeats[seatIndex];
+                    updates.lockedSeats = lockedSeats;
+                } else if (action === 'kick' && targetUid) {
+                    const seats = roomData.seats.map((s: any) => s?.uid === targetUid ? null : s);
+                    updates.seats = seats;
+                    updates.seatedCount = seats.filter((s: any) => s !== null).length;
+                } else if (action === 'mute' && targetUid) {
+                    updates.mutedUsers = arrayUnion(targetUid);
+                } else if (action === 'unmute' && targetUid) {
+                    updates.mutedUsers = arrayRemove(targetUid);
+                } else if (action === 'change_layout' && typeof data.seats === 'number') {
+                    // Koltuk sayısını değiştir
+                    const newSeatCount = data.seats;
+                    let newSeats = [...roomData.seats];
+                    if (newSeats.length < newSeatCount) {
+                        newSeats = [...newSeats, ...Array(newSeatCount - newSeats.length).fill(null)];
+                    } else {
+                        newSeats = newSeats.slice(0, newSeatCount);
+                    }
+                    updates.seats = newSeats;
+                    updates.maxSeatCount = newSeatCount;
+                } else if (action === 'delete_room') {
+                    // Odayı sil (aslında pasife çekmek daha iyi olabilir ama direkt siliyoruz şimdilik)
+                    deleteDoc(snap.ref);
+                    return;
+                }
+
+                if (Object.keys(updates).length > 0) {
+                    updateDoc(snap.ref, updates);
+                }
+            });
+            return;
+        }
+
+        if (event === 'update_announcement' && this.currentRoomId) {
+            updateDoc(doc(db, 'rooms', this.currentRoomId), { announcement: data });
+            return;
+        }
+
+        if (event === 'follow_room' && data.targetRoomId) {
+            // Takipçi sayısını artır ve kullanıcıya ekle
+            updateDoc(doc(db, 'rooms', data.targetRoomId), { followerCount: increment(1) });
+            updateDoc(doc(db, 'users', this.uid), { followingRooms: arrayUnion(data.targetRoomId) });
+            return;
+        }
+
+        if (event === 'unfollow_room' && data.targetRoomId) {
+            updateDoc(doc(db, 'rooms', data.targetRoomId), { followerCount: increment(-1) });
+            updateDoc(doc(db, 'users', this.uid), { followingRooms: arrayRemove(data.targetRoomId) });
+            return;
+        }
+
+        if (event === 'speaking_state' && this.currentRoomId) {
+            getDoc(doc(db, 'rooms', this.currentRoomId)).then(snap => {
+                if (!snap.exists()) return;
+                const roomData = snap.data();
+                const seats = [...roomData.seats];
+                const seatIdx = seats.findIndex(s => s?.uid === this.uid);
+                if (seatIdx !== -1) {
+                    seats[seatIdx].isSpeaking = data;
+                    updateDoc(snap.ref, { seats });
                 }
             });
             return;
@@ -254,6 +350,28 @@ class FirebaseSocketEmulator {
                 toUid: data.to,
                 signal: data.signal,
                 signalType: data.type,
+                timestamp: serverTimestamp()
+            }).catch(() => { });
+            return;
+        }
+
+        if (event === 'peer_mic_on' && this.currentRoomId) {
+            // Odadaki diğer kişilere "mikrofonum açıldı" sinyali göndermek için
+            // geçici olarak webrtc_signal altyapısını kullanıyoruz
+            addDoc(collection(db, 'signaling'), {
+                fromUid: this.uid,
+                roomId: this.currentRoomId,
+                signalType: 'peer_mic_on',
+                timestamp: serverTimestamp()
+            }).catch(() => { });
+            return;
+        }
+
+        if (event === 'request_offer' && data.to) {
+            addDoc(collection(db, 'signaling'), {
+                fromUid: this.uid,
+                toUid: data.to,
+                signalType: 'request_offer',
                 timestamp: serverTimestamp()
             }).catch(() => { });
             return;
@@ -303,7 +421,14 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
 
     const initSocket = useCallback(() => {
         const user = pb.authStore.model;
-        if (!user?.id || globalFirebaseSocket) return globalFirebaseSocket;
+        if (!user?.id) return null;
+
+        if (globalFirebaseSocket) {
+            setIsConnected(true);
+            setAuthStatus('authenticated');
+            return globalFirebaseSocket;
+        }
+
         const socket = new FirebaseSocketEmulator(user.id);
         globalFirebaseSocket = socket;
         setAuthStatus('authenticating');

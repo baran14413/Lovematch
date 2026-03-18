@@ -172,25 +172,68 @@ class CollectionAdapter {
     async getList(page = 1, perPage = 50, options: any = {}) {
         let q = query(collection(db, this.name));
 
-        if (options.filter) {
-            // Basit filtre ayrıştırma: field = "value" or field != "value"
-            const matchEq = options.filter.match(/(\w+)\s*=\s*"(.*)"/);
-            const matchNotEq = options.filter.match(/(\w+)\s*!=\s*"(.*)"/);
-            const matchNum = options.filter.match(/(\w+)\s*=\s*(\d+)/);
+        // Filtre ayrıştırma - Basit PocketBase filter sözdizimini Firestore'a çevirir
+        if (options.filter && options.filter.trim()) {
+            try {
+                const filterStr = options.filter.trim();
 
-            if (matchEq) {
-                q = query(q, where(matchEq[1], "==", matchEq[2]));
-            } else if (matchNotEq) {
-                q = query(q, where(matchNotEq[1], "!=", matchNotEq[2]));
-            } else if (matchNum) {
-                q = query(q, where(matchNum[1], "==", Number(matchNum[2])));
+                // Desteklenen filtre desenleri
+                // 1. field = "value"  →  == string
+                const matchEq = filterStr.match(/^(\w+)\s*=\s*"(.+)"$/);
+                // 2. field = true/false  →  boolean
+                const matchBool = filterStr.match(/^(\w+)\s*=\s*(true|false)$/);
+                // 3. field = 123  →  number
+                const matchNum = filterStr.match(/^(\w+)\s*=\s*(\d+(?:\.\d+)?)$/);
+                // 4. field != "value"
+                const matchNotEq = filterStr.match(/^(\w+)\s*!=\s*"(.+)"$/);
+                // 5. Çoklu koşul: "field = "val" && field2 = "val2""
+                //    Sadece ilk koşulu alıyoruz (Firestore compound where desteği için)
+
+                if (matchBool) {
+                    q = query(q, where(matchBool[1], '==', matchBool[2] === 'true'));
+                } else if (matchEq) {
+                    q = query(q, where(matchEq[1], '==', matchEq[2]));
+                } else if (matchNotEq) {
+                    q = query(q, where(matchNotEq[1], '!=', matchNotEq[2]));
+                } else if (matchNum) {
+                    q = query(q, where(matchNum[1], '==', Number(matchNum[2])));
+                } else if (filterStr.includes('&&')) {
+                    // Çoklu koşul - her koşulu sırayla parse et
+                    const parts = filterStr.split('&&').map((p: string) => p.trim());
+                    for (const part of parts) {
+                        const eqM = part.match(/(\w+)\s*=\s*"(.+)"/);
+                        const boolM = part.match(/(\w+)\s*=\s*(true|false)/);
+                        const numM = part.match(/(\w+)\s*=\s*(\d+)/);
+                        const neqM = part.match(/(\w+)\s*!=\s*"(.+)"/);
+
+                        if (boolM) {
+                            q = query(q, where(boolM[1], '==', boolM[2] === 'true'));
+                        } else if (eqM) {
+                            q = query(q, where(eqM[1], '==', eqM[2]));
+                        } else if (neqM) {
+                            // != sorguları Firestore'da dikkatli kullanılmalı
+                            // (Sadece tek != sorgusu çalışır)
+                        } else if (numM) {
+                            q = query(q, where(numM[1], '==', Number(numM[2])));
+                        }
+                        // "likes != null" gibi tanımsız filtreleri sessizce atla
+                    }
+                }
+                // Hiçbir desene uymayan filtreler (örn: "likes != null") → tüm kayıtları getir
+            } catch (filterErr) {
+                console.warn('[Firebase Adapter] Filter parse hatası, filtre atlandı:', options.filter, filterErr);
             }
         }
 
         if (options.sort) {
-            const isDesc = options.sort.startsWith("-");
+            const isDesc = options.sort.startsWith('-');
             const field = isDesc ? options.sort.substring(1) : options.sort;
-            q = query(q, orderBy(field, isDesc ? "desc" : "asc"));
+            try {
+                q = query(q, orderBy(field, isDesc ? 'desc' : 'asc'));
+            } catch (e) {
+                // sort alanı dizin yoksa sessizce atla
+                console.warn('[Firebase Adapter] Sort field dizini yok:', field);
+            }
         }
 
         q = query(q, limit(perPage));

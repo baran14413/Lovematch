@@ -10,11 +10,11 @@ import { SocialService } from '../utils/social';
 /**
  * =========================================================================
  *  LOVEMATCH CLONE - PARTİ ODASI (V14 ULTIMATE UI)
- *  Features: Admin Actions, Long Press, Camera, Smart VAD, Layouts, Minimize
+ *  Özellikler: Yönetici Aksiyonları, Uzun Basma, Kamera, Akıllı VAD, 4x4 Düzen, Küçültme
  * =========================================================================
  */
 
-// Custom Hook for Long Press
+// Uzun basma (long press) algılayıcı özel kancası
 function useLongPress(callback: () => void, ms = 600) {
     const [startLongPress, setStartLongPress] = useState(false);
 
@@ -91,16 +91,16 @@ function Seat({ seat, index, isHost, isLeader, isLocked, localStream, remoteStre
     const longPressProps = useLongPress(onLongPress);
 
     const isSpeakingIntensity = seat?.isSpeaking || 0;
-    const scale = 1 + (isSpeakingIntensity / 100) * 0.3;
     const stream = seat?.uid === pb.authStore.model?.id ? localStream : remoteStream;
     const hasVideo = stream && stream.getVideoTracks().length > 0;
 
     return (
         <div className="seat-wrapper-v9" onClick={() => onClick(hasVideo ? stream : null)} {...longPressProps}>
             <div
-                className={`circle-v9 guest-size ${seat ? 'active' : ''} ${isSpeakingIntensity > 10 ? 'talking' : ''} ${isLocked ? 'locked' : ''}`}
-                style={{ transform: `scale(${scale})` }}
+                className={`circle-v9 ${seat ? 'active' : ''} ${isSpeakingIntensity > 15 ? 'talking' : ''} ${isLocked ? 'locked' : ''}`}
             >
+                {/* Kenarlık Efekti */}
+                <div className="seat-border-glow"></div>
 
                 {/* Mute Göstergesi */}
                 {seat && roomState?.mutedUsers?.includes(seat.uid) && (
@@ -109,59 +109,46 @@ function Seat({ seat, index, isHost, isLeader, isLocked, localStream, remoteStre
                     </div>
                 )}
 
-                {seat ? (
-                    <>
-                        <div className="video-container">
-                            {hasVideo ? (
-                                <VideoPreview
-                                    stream={stream}
-                                    muted={seat?.uid === pb.authStore.model?.id} // Kendi videon sessiz (feedback önleme)
-                                />
-                            ) : (
-                                <img src={seat.avatar || fallback} className="avatar-img" onError={(e) => e.currentTarget.src = fallback} />
-                            )}
-                        </div>
-                        {isSpeakingIntensity > 10 && (
-                            <div className="speaking-indicator">
-                                <div className="pulse-1" style={{ animationDuration: `${1.5 - (isSpeakingIntensity / 80)}s` }}></div>
-                                <div className="pulse-2" style={{ animationDuration: `${1.5 - (isSpeakingIntensity / 80)}s` }}></div>
+                <div className="seat-inner-container">
+                    {seat ? (
+                        <>
+                            <div className="video-container">
+                                {hasVideo ? (
+                                    <VideoPreview
+                                        stream={stream}
+                                        muted={seat?.uid === pb.authStore.model?.id}
+                                    />
+                                ) : (
+                                    <img src={seat.avatar || fallback} className="avatar-img" onError={(e) => e.currentTarget.src = fallback} />
+                                )}
                             </div>
-                        )}
-                        {isLeader && <div className="leader-tag">{t('leader')}</div>}
-                    </>
-                ) : (
-                    <div className="empty-seat">
-                        {isLocked ? <i className="fa-solid fa-lock"></i> : <i className="fa-solid fa-plus"></i>}
-                    </div>
-                )}
-            </div>
-            <div className={`name-tag-v9 ${isHost ? 'host' : ''}`}>
-                {seat ? seat.username : (isLocked ? t('locked') : '\u00A0')}
-            </div>
 
-            <style>{`
-                .seat-wrapper-v9 { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; transition: 0.1s linear; position: relative; z-index: 10; }
-                .circle-v9 { border-radius: 24px; background: #111; border: 2px solid #1a1a1a; display: flex; align-items: center; justify-content: center; position: relative; transition: 0.1s linear; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-                .guest-size { width: 64px; height: 64px; }
-                @media (max-width: 480px) {
-                    .guest-size { width: 54px; height: 54px; border-radius: 20px; }
-                    .name-tag-v9 { font-size: 8px !important; max-width: 50px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-                }
-                .circle-v9.active { border-color: #333; }
-                .circle-v9.talking { border-color: #22c55e; box-shadow: 0 0 15px rgba(34, 197, 94, 0.4); }
-                .circle-v9.locked { background: #1a0a0a; border-color: #301010; color: #ef4444; }
-                .video-container { position: absolute; inset: 0; border-radius: 20px; overflow: hidden; z-index: 2; background: #000; }
-                .avatar-img { width: 100%; height: 100%; object-fit: cover; }
-                .leader-tag { position: absolute; top: -8px; background: #eab308; color: #000; font-size: 8px; font-weight: 900; padding: 2px 6px; border-radius: 4px; z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
-                .name-tag-v9 { color: #666; font-size: 10px; font-weight: 800; margin-top: 2px; text-shadow: 0 1px 2px #000; }
-                .name-tag-v9.host { color: #a855f7; }
-                .speaking-indicator { position: absolute; inset: -4px; z-index: 1; pointer-events: none; }
-                .pulse-1, .pulse-2 { position: absolute; inset: 0; border: 3px solid #22c55e; border-radius: 26px; opacity: 0; animation: speaking-pulse infinite; }
-                @keyframes speaking-pulse { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(1.4); opacity: 0; } }
-            `}</style>
+                            {/* Konuşma Dalgaları */}
+                            {isSpeakingIntensity > 15 && (
+                                <div className="speaking-waves">
+                                    <div className="wave"></div>
+                                    <div className="wave"></div>
+                                    <div className="wave"></div>
+                                </div>
+                            )}
+
+                            {isHost && <div className="host-badge"><i className="fa-solid fa-crown"></i></div>}
+                            {isLeader && !isHost && <div className="leader-badge"><i className="fa-solid fa-shield-halved"></i></div>}
+                        </>
+                    ) : (
+                        <div className="empty-seat">
+                            {isLocked ? <i className="fa-solid fa-lock"></i> : <i className="fa-solid fa-plus-large"></i>}
+                        </div>
+                    )}
+                </div>
+            </div>
+            <div className={`name-tag-v10 ${isHost ? 'host' : ''}`}>
+                <span className="name-text">{seat ? seat.username : (isLocked ? t('locked') : (index + 1))}</span>
+            </div>
         </div>
     );
 }
+
 
 function FloatingLobbyBackground() {
     const { t } = useLanguage();
@@ -222,6 +209,7 @@ export function PartyRoomPage({ onRoomJoin }: { onRoomJoin?: (id: string, name: 
     const [showTournament, setShowTournament] = useState(false);
     const navigate = useNavigate();
 
+    // Odaları Firebase'den çekme fonksiyonu
     const fetchRooms = async () => {
         try {
             // Firebase üzerinden odaları çek (VDS bağımlılığı kalktı)
@@ -356,83 +344,81 @@ export function PartyRoomPage({ onRoomJoin }: { onRoomJoin?: (id: string, name: 
                         <div className="empty-icon">🏜️</div>
                         <p>{t('no_rooms')}</p>
                     </div>
-                ) : [...rooms].sort((a, b) => b.viewerCount - a.viewerCount).map((room, i) => (
-                    <div
-                        key={room.id}
-                        className="room-card-v9"
-                        onClick={() => onRoomJoin?.(room.id, room.name, '🎙️')}
-                    >
-                        <div className="room-visual">
-                            <div className="overlay-tags">
-                                <span className="tag-viewer">
-                                    <i className="fa-solid fa-user"></i> {room.viewerCount}
-                                </span>
-                                {room.seatedCount > 0 && (
-                                    <span className="tag-mic">
-                                        <i className="fa-solid fa-microphone"></i> {room.seatedCount}
+                ) : (
+                    // Odaları izleyici sayısına göre sıralayıp listele
+                    [...rooms].sort((a, b) => (b.viewerCount || 0) - (a.viewerCount || 0)).map((room, i) => (
+                        <div
+                            key={room.id}
+                            className="room-card-v9"
+                            onClick={() => onRoomJoin?.(room.id, room.name, '🎙️')}
+                        >
+                            <div className="room-visual">
+                                <div className="overlay-tags">
+                                    <span className="tag-viewer">
+                                        <i className="fa-solid fa-user"></i> {room.viewerCount}
                                     </span>
-                                )}
-                            </div>
-                            <div className="room-avatar-bg" style={{
-                                background: `linear-gradient(45deg, ${['#8b5cf6', '#ec4899', '#3b82f6', '#10b981'][i % 4]}44, #000)`
-                            }}>
-                                {room.ownerAvatar ? (
-                                    <img src={room.ownerAvatar} alt="" />
-                                ) : (
-                                    <span className="emoji">{['🎤', '🎧', '🔥', '🎮', '💃', '핺'][i % 6]}</span>
-                                )}
-                            </div>
-                            {/* Uyku Modu Etiketi */}
-                            {room.isSleeping && (
-                                <div className="sleep-tag">
-                                    <i className="fa-solid fa-moon"></i> <span>{t('sleeping')}</span>
-                                </div>
-                            )}
-
-                            {/* Boost Seviye Rozeti */}
-                            {room.boostLevel > 1 && (
-                                <div className={`boost-badge boost-lv${room.boostLevel}`}>
-                                    {room.boostLevel === 3 ? '💥' : '⚡'} LV{room.boostLevel}
-                                </div>
-                            )}
-                        </div>
-                        <div className="room-info-v9">
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                {/* Oda adına tıklayinca detay panel açılır, kart tıklaması odaya girer */}
-                                <h3 className="room-name-v9"
-                                    style={{ flex: 1, cursor: 'pointer' }}
-                                    onClick={(e) => { e.stopPropagation(); setSelectedRoomDetail(room); }}
-                                >
-                                    {room.name} <i className="fa-solid fa-circle-info" style={{ fontSize: 9, color: '#555', marginLeft: 4 }}></i>
-                                </h3>
-                                {/* Sol üstteki Takip Et Butonu */}
-                                <button
-                                    className={`follow-room-btn ${followedRooms.has(room.id) ? 'following' : ''}`}
-                                    onClick={(e) => toggleFollow(e, room.id)}
-                                >
-                                    {followedRooms.has(room.id) ? (
-                                        <><i className="fa-solid fa-heart"></i> {t('following')}</>
-                                    ) : (
-                                        <><i className="fa-regular fa-heart"></i> {t('follow')}</>
+                                    {room.seatedCount > 0 && (
+                                        <span className="tag-mic">
+                                            <i className="fa-solid fa-microphone"></i> {room.seatedCount}
+                                        </span>
                                     )}
-                                </button>
+                                </div>
+                                <div className="room-avatar-bg" style={{
+                                    background: `linear-gradient(45deg, ${['#8b5cf6', '#ec4899', '#3b82f6', '#10b981'][i % 4]}44, #000)`
+                                }}>
+                                    {room.ownerAvatar ? (
+                                        <img src={room.ownerAvatar} alt="" />
+                                    ) : (
+                                        <span className="emoji">{['🎤', '🎧', '🔥', '🎮', '💃', '핺'][i % 6]}</span>
+                                    )}
+                                </div>
+                                {/* Uyku Modu Etiketi */}
+                                {room.isSleeping && (
+                                    <div className="sleep-tag">
+                                        <i className="fa-solid fa-moon"></i> <span>{t('sleeping')}</span>
+                                    </div>
+                                )}
+
+                                {/* Boost Seviye Rozeti */}
+                                {room.boostLevel > 1 && (
+                                    <div className={`boost-badge boost-lv${room.boostLevel}`}>
+                                        {room.boostLevel === 3 ? '💥' : '⚡'} LV{room.boostLevel}
+                                    </div>
+                                )}
                             </div>
-                            <div className="owner-info">
-                                <span className="owner-name">@{room.ownerName}</span>
-                                {room.followerCount > 0 && (
-                                    <span className="follower-count">
-                                        <i className="fa-solid fa-bell" style={{ fontSize: 8 }}></i> {room.followerCount}
-                                    </span>
-                                )}
-                                {room.maxViewers && (
-                                    <span style={{ fontSize: 9, color: '#555', fontWeight: 700 }}>
-                                        👤 {room.viewerCount}/{room.maxViewers}
-                                    </span>
-                                )}
+                            <div className="room-info-v9">
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    {/* Oda adına tıklayinca detay panel açılır, kart tıklaması odaya girer */}
+                                    <h3 className="room-name-v9"
+                                        style={{ flex: 1, cursor: 'pointer' }}
+                                        onClick={(e) => { e.stopPropagation(); setSelectedRoomDetail(room); }}
+                                    >
+                                        {room.name} <i className="fa-solid fa-circle-info" style={{ fontSize: 9, color: '#555', marginLeft: 4 }}></i>
+                                    </h3>
+                                    {/* Sol üstteki Takip Et Butonu */}
+                                    <button
+                                        className={`follow-room-btn ${followedRooms.has(room.id) ? 'following' : ''}`}
+                                        onClick={(e) => toggleFollow(e, room.id)}
+                                    >
+                                        {followedRooms.has(room.id) ? (
+                                            <><i className="fa-solid fa-heart"></i> {t('following')}</>
+                                        ) : (
+                                            <><i className="fa-regular fa-heart"></i> {t('follow')}</>
+                                        )}
+                                    </button>
+                                </div>
+                                <div className="owner-info">
+                                    <span className="owner-name">@{room.ownerName}</span>
+                                    {room.maxViewers && (
+                                        <span style={{ fontSize: 9, color: '#555', fontWeight: 700 }}>
+                                            👤 {room.viewerCount}/{room.maxViewers}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ))}
+                    )))
+                }
             </div>
 
             {/* Create Room Modal */}
@@ -502,35 +488,38 @@ export function PartyRoomPage({ onRoomJoin }: { onRoomJoin?: (id: string, name: 
                             <button className="confirm-btn" disabled={!newRoomName.trim()} onClick={handleCreateRoom}>Oluştur</button>
                         </div>
                     </div>
-                </div>
-            )}
+                </div >
+            )
+            }
 
             {/* ODA BİLGİ PANELİ (LOBİ) - BilgiPaneli bileşeni, lobby varyantı */}
-            {selectedRoomDetail && (
-                <BilgiPaneli
-                    room={{
-                        id: selectedRoomDetail.id,
-                        name: selectedRoomDetail.name,
-                        ownerName: selectedRoomDetail.ownerName,
-                        ownerAvatar: selectedRoomDetail.ownerAvatar,
-                        ownerUid: selectedRoomDetail.ownerUid,
-                        boostLevel: selectedRoomDetail.boostLevel || 1,
-                        viewerCount: selectedRoomDetail.viewerCount || 0,
-                        maxViewers: selectedRoomDetail.maxViewers,
-                        seatedCount: selectedRoomDetail.seatedCount || 0,
-                        maxSeatCount: selectedRoomDetail.maxSeatCount,
-                        maxSeatsByLevel: selectedRoomDetail.maxSeatsByLevel,
-                        followerCount: selectedRoomDetail.followerCount || 0,
-                        nextBoostAt: selectedRoomDetail.nextBoostAt,
-                        createdAt: selectedRoomDetail.createdAt,
-                    }}
-                    isFollowing={followedRooms.has(selectedRoomDetail.id)}
-                    onToggleFollow={(e) => { toggleFollow(e, selectedRoomDetail.id); }}
-                    onJoin={() => { setSelectedRoomDetail(null); onRoomJoin?.(selectedRoomDetail.id, selectedRoomDetail.name); }}
-                    onClose={() => setSelectedRoomDetail(null)}
-                    variant="lobby"
-                />
-            )}
+            {
+                selectedRoomDetail && (
+                    <BilgiPaneli
+                        room={{
+                            id: selectedRoomDetail.id,
+                            name: selectedRoomDetail.name,
+                            ownerName: selectedRoomDetail.ownerName,
+                            ownerAvatar: selectedRoomDetail.ownerAvatar,
+                            ownerUid: selectedRoomDetail.ownerUid,
+                            boostLevel: selectedRoomDetail.boostLevel || 1,
+                            viewerCount: selectedRoomDetail.viewerCount || 0,
+                            maxViewers: selectedRoomDetail.maxViewers,
+                            seatedCount: selectedRoomDetail.seatedCount || 0,
+                            maxSeatCount: selectedRoomDetail.maxSeatCount,
+                            maxSeatsByLevel: selectedRoomDetail.maxSeatsByLevel,
+                            followerCount: selectedRoomDetail.followerCount || 0,
+                            nextBoostAt: selectedRoomDetail.nextBoostAt,
+                            createdAt: selectedRoomDetail.createdAt,
+                        }}
+                        isFollowing={followedRooms.has(selectedRoomDetail.id)}
+                        onToggleFollow={(e) => { toggleFollow(e, selectedRoomDetail.id); }}
+                        onJoin={() => { setSelectedRoomDetail(null); onRoomJoin?.(selectedRoomDetail.id, selectedRoomDetail.name); }}
+                        onClose={() => setSelectedRoomDetail(null)}
+                        variant="lobby"
+                    />
+                )
+            }
 
             <style>{`
                 .lm-lobby-container { min-height: 100%; background: #050505; padding: 60px 20px 100px; position: relative; overflow-y: auto; overflow-x: hidden; }
@@ -696,7 +685,7 @@ export function PartyRoomPage({ onRoomJoin }: { onRoomJoin?: (id: string, name: 
                     80% { transform: rotate(5deg) translateY(-1px); } 
                 }
             `}</style>
-        </div>
+        </div >
     );
 }
 
@@ -708,9 +697,10 @@ export function PartyRoomInner({ roomId, onLeave, onBack: _onBack }: { roomId: s
     const { t, language } = useLanguage();
     const navigate = useNavigate();
     const { socket: _socket, isConnected: socketConnected, connect, authStatus } = useSocket();
+    // usePartyRoom kancası ile oda mantığını yönetiyoruz
     const { roomState, chat, isMicOn, isCameraOn, isLoading, isConnected, localStream, remoteStreams, actions } = usePartyRoom(roomId);
 
-    // State'ler
+    // Oda içi yerel durum (state) yönetimi
     const [isAnnouncementExpanded, setIsAnnouncementExpanded] = useState(false);
     const [isEditingAnnouncement, setIsEditingAnnouncement] = useState(false);
     const [tempAnnouncement, setTempAnnouncement] = useState('');
@@ -956,7 +946,6 @@ export function PartyRoomInner({ roomId, onLeave, onBack: _onBack }: { roomId: s
 
     return (
         <div id="party-room-root" className={`lm-room-v9 ${roomState.layout} ${isSeatCollapsed ? 'seat-collapsed' : ''}`}>
-            {/* Arka Plan Katmanı - PocketBase URL veya dinamik yüklenen */}
             <div className="room-bg-layer" style={{
                 background: (() => {
                     const dynUrl = (window as any).__roomBgUrl;
@@ -966,42 +955,56 @@ export function PartyRoomInner({ roomId, onLeave, onBack: _onBack }: { roomId: s
                         ? `url(${bgUrl}) center/cover no-repeat`
                         : `radial-gradient(circle at top, ${roomState.seats[0]?.color || '#8b5cf6'}33 0%, var(--bg-primary) 80%)`;
                 })()
-            }} />
+            }}>
+                <div className="bg-particles">
+                    {Array.from({ length: 15 }).map((_, i) => (
+                        <div key={i} className="particle" style={{
+                            left: `${Math.random() * 100}%`,
+                            width: `${Math.random() * 10 + 5}px`,
+                            height: `${Math.random() * 10 + 5}px`,
+                            animationDelay: `${Math.random() * 10}s`,
+                            animationDuration: `${Math.random() * 10 + 10}s`
+                        }}></div>
+                    ))}
+                </div>
+            </div>
 
             {/* ===== ODA İÇİ BİLGİ PANELi - inroom varyantı ===== */}
-            {showBilgiPaneli && roomState && (
-                <BilgiPaneli
-                    room={{
-                        id: roomId,
-                        name: roomState.name,
-                        ownerName: roomState.ownerName,
-                        ownerAvatar: roomState.ownerAvatar,
-                        ownerUid: roomState.ownerUid,
-                        boostLevel: boostLevel,
-                        viewerCount: roomState.viewerCount || 0,
-                        maxViewers: roomState.maxViewers,
-                        seatedCount: roomState.seatedCount || 0,
-                        maxSeatCount: roomState.maxSeatCount,
-                        maxSeatsByLevel: roomState.maxSeatsByLevel,
-                        followerCount: followerCount,
-                        nextBoostAt: nextBoostAt,
-                        createdAt: roomState.createdAt,
-                    }}
-                    isFollowing={isFollowingRoom}
-                    onToggleFollow={(e) => {
-                        e.stopPropagation();
-                        if (isFollowingRoom) {
-                            _socket?.emit('unfollow_room', { targetRoomId: roomId });
-                            setIsFollowingRoom(false);
-                        } else {
-                            _socket?.emit('follow_room', { targetRoomId: roomId });
-                            setIsFollowingRoom(true);
-                        }
-                    }}
-                    onClose={() => setShowBilgiPaneli(false)}
-                    variant="inroom"
-                />
-            )}
+            {
+                showBilgiPaneli && roomState && (
+                    <BilgiPaneli
+                        room={{
+                            id: roomId,
+                            name: roomState.name,
+                            ownerName: roomState.ownerName,
+                            ownerAvatar: roomState.ownerAvatar,
+                            ownerUid: roomState.ownerUid,
+                            boostLevel: boostLevel,
+                            viewerCount: roomState.viewerCount || 0,
+                            maxViewers: roomState.maxViewers,
+                            seatedCount: roomState.seatedCount || 0,
+                            maxSeatCount: roomState.maxSeatCount,
+                            maxSeatsByLevel: roomState.maxSeatsByLevel,
+                            followerCount: followerCount,
+                            nextBoostAt: nextBoostAt,
+                            createdAt: roomState.createdAt,
+                        }}
+                        isFollowing={isFollowingRoom}
+                        onToggleFollow={(e) => {
+                            e.stopPropagation();
+                            if (isFollowingRoom) {
+                                _socket?.emit('unfollow_room', { targetRoomId: roomId });
+                                setIsFollowingRoom(false);
+                            } else {
+                                _socket?.emit('follow_room', { targetRoomId: roomId });
+                                setIsFollowingRoom(true);
+                            }
+                        }}
+                        onClose={() => setShowBilgiPaneli(false)}
+                        variant="inroom"
+                    />
+                )
+            }
 
             {/* ======================== ÜST BAR - YENI TASARIM ======================== */}
             <header className="room-header-v9">
@@ -1110,371 +1113,381 @@ export function PartyRoomInner({ roomId, onLeave, onBack: _onBack }: { roomId: s
             </header>
 
             {/* Odadakiler Modalı */}
-            {showRoomUsers && (
-                <div className="modal-overlay" onClick={() => setShowRoomUsers(false)}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2>👥 {t('people_in_room')} ({roomUsers.length})</h2>
-                            <button className="close-modal" onClick={() => setShowRoomUsers(false)}>
-                                <i className="fa-solid fa-xmark"></i>
-                            </button>
-                        </div>
-                        <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                            {roomUsers.length === 0 ? (
-                                <p style={{ color: '#666', textAlign: 'center', padding: 20 }}>Odada kimse yok.</p>
-                            ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                    {roomUsers.map(u => (
-                                        <div key={u.uid} style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'space-between',
-                                            background: u.isOnline ? 'rgba(139, 92, 246, 0.08)' : 'rgba(26, 29, 35, 0.4)',
-                                            padding: 12,
-                                            borderRadius: 16,
-                                            border: u.isOnline ? '1px solid rgba(139, 92, 246, 0.2)' : '1px solid rgba(255,255,255,0.03)',
-                                            boxShadow: u.isOnline ? '0 4px 15px rgba(0,0,0,0.2)' : 'none',
-                                            opacity: u.isOnline ? 1 : 0.6,
-                                            filter: u.isOnline ? 'none' : 'grayscale(1)'
-                                        }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                                <div style={{ position: 'relative' }}>
-                                                    <div style={{ width: 36, height: 36, background: '#333', borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
-                                                        {u.avatar ? <img src={u.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#fff' }}>{u.username?.[0]?.toUpperCase()}</span>}
+            {
+                showRoomUsers && (
+                    <div className="modal-overlay" onClick={() => setShowRoomUsers(false)}>
+                        <div className="modal-content" onClick={e => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h2>👥 {t('people_in_room')} ({roomUsers.length})</h2>
+                                <button className="close-modal" onClick={() => setShowRoomUsers(false)}>
+                                    <i className="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                            <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                                {roomUsers.length === 0 ? (
+                                    <p style={{ color: '#666', textAlign: 'center', padding: 20 }}>Odada kimse yok.</p>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                        {roomUsers.map(u => (
+                                            <div key={u.uid} style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                background: u.isOnline ? 'rgba(139, 92, 246, 0.08)' : 'rgba(26, 29, 35, 0.4)',
+                                                padding: 12,
+                                                borderRadius: 16,
+                                                border: u.isOnline ? '1px solid rgba(139, 92, 246, 0.2)' : '1px solid rgba(255,255,255,0.03)',
+                                                boxShadow: u.isOnline ? '0 4px 15px rgba(0,0,0,0.2)' : 'none',
+                                                opacity: u.isOnline ? 1 : 0.6,
+                                                filter: u.isOnline ? 'none' : 'grayscale(1)'
+                                            }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                    <div style={{ position: 'relative' }}>
+                                                        <div style={{ width: 36, height: 36, background: '#333', borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
+                                                            {u.avatar ? <img src={u.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#fff' }}>{u.username?.[0]?.toUpperCase()}</span>}
+                                                        </div>
+                                                        {u.isOnline ? (
+                                                            <div style={{ position: 'absolute', bottom: 0, right: 0, width: 10, height: 10, background: '#22c55e', borderRadius: '50%', border: '2px solid #1a1d23' }}></div>
+                                                        ) : (
+                                                            <div style={{ position: 'absolute', bottom: 0, right: 0, width: 10, height: 10, background: '#666', borderRadius: '50%', border: '2px solid #1a1d23' }}></div>
+                                                        )}
                                                     </div>
-                                                    {u.isOnline ? (
-                                                        <div style={{ position: 'absolute', bottom: 0, right: 0, width: 10, height: 10, background: '#22c55e', borderRadius: '50%', border: '2px solid #1a1d23' }}></div>
-                                                    ) : (
-                                                        <div style={{ position: 'absolute', bottom: 0, right: 0, width: 10, height: 10, background: '#666', borderRadius: '50%', border: '2px solid #1a1d23' }}></div>
-                                                    )}
+                                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                        <span style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 13 }}>{u.username}</span>
+                                                        {u.isOwner ? (
+                                                            <span style={{ color: '#fcd34d', fontSize: 10, fontWeight: 800 }}><i className="fa-solid fa-crown" style={{ animation: 'pulseCrown 1.5s infinite alternate', marginRight: 4 }}></i>Oda Sahibi</span>
+                                                        ) : u.isAdmin ? (
+                                                            <span style={{ color: '#60a5fa', fontSize: 10, fontWeight: 800 }}><i className="fa-solid fa-hammer" style={{ animation: 'swingMod 2s infinite', marginRight: 4 }}></i>Moderatör</span>
+                                                        ) : null}
+                                                        {!u.isOnline && u.lastSeen && (
+                                                            <span style={{ color: '#555', fontSize: 9, fontWeight: 700, marginTop: 2 }}>
+                                                                Son Görülme: {new Date(u.lastSeen).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                    <span style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 13 }}>{u.username}</span>
-                                                    {u.isOwner ? (
-                                                        <span style={{ color: '#fcd34d', fontSize: 10, fontWeight: 800 }}><i className="fa-solid fa-crown" style={{ animation: 'pulseCrown 1.5s infinite alternate', marginRight: 4 }}></i>Oda Sahibi</span>
-                                                    ) : u.isAdmin ? (
-                                                        <span style={{ color: '#60a5fa', fontSize: 10, fontWeight: 800 }}><i className="fa-solid fa-hammer" style={{ animation: 'swingMod 2s infinite', marginRight: 4 }}></i>Moderatör</span>
-                                                    ) : null}
-                                                    {!u.isOnline && u.lastSeen && (
-                                                        <span style={{ color: '#555', fontSize: 9, fontWeight: 700, marginTop: 2 }}>
-                                                            Son Görülme: {new Date(u.lastSeen).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
-                                                        </span>
-                                                    )}
-                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        setShowRoomUsers(false);
+                                                        setActionPanel({ type: 'user', data: u });
+                                                    }}
+                                                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', width: 32, height: 32, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                >
+                                                    <i className="fa-solid fa-ellipsis-vertical"></i>
+                                                </button>
                                             </div>
-                                            <button
-                                                onClick={() => {
-                                                    setShowRoomUsers(false);
-                                                    setActionPanel({ type: 'user', data: u });
-                                                }}
-                                                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', width: 32, height: 32, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                            >
-                                                <i className="fa-solid fa-ellipsis-vertical"></i>
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Takipçiler Modalı */}
-            {showFollowers && (
-                <div className="modal-overlay" onClick={() => setShowFollowers(false)}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2>🔔 Takıpçiler ({roomState.followerCount || 0})</h2>
-                            <button className="close-modal" onClick={() => setShowFollowers(false)}>
-                                <i className="fa-solid fa-xmark"></i>
-                            </button>
-                        </div>
-                        <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                            {loadingFollowers ? (
-                                <div style={{ display: 'flex', justifyContent: 'center', padding: 30 }}><div className="p-loader"></div></div>
-                            ) : followers.length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '30px 0', color: '#555' }}>
-                                    <div style={{ fontSize: 40, marginBottom: 10 }}>🔔</div>
-                                    <p style={{ fontWeight: 700 }}>Henüz takıpçi yok.</p>
-                                </div>
-                            ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                    {followers.map((f: any) => (
-                                        <div key={f.uid} className="follower-row">
-                                            <div className="follower-avatar">
-                                                {f.avatar ? <img src={f.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 12 }} /> : f.username?.[0]?.toUpperCase()}
+            {
+                showFollowers && (
+                    <div className="modal-overlay" onClick={() => setShowFollowers(false)}>
+                        <div className="modal-content" onClick={e => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h2>🔔 Takıpçiler ({roomState.followerCount || 0})</h2>
+                                <button className="close-modal" onClick={() => setShowFollowers(false)}>
+                                    <i className="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                            <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                                {loadingFollowers ? (
+                                    <div style={{ display: 'flex', justifyContent: 'center', padding: 30 }}><div className="p-loader"></div></div>
+                                ) : followers.length === 0 ? (
+                                    <div style={{ textAlign: 'center', padding: '30px 0', color: '#555' }}>
+                                        <div style={{ fontSize: 40, marginBottom: 10 }}>🔔</div>
+                                        <p style={{ fontWeight: 700 }}>Henüz takıpçi yok.</p>
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                        {followers.map((f: any) => (
+                                            <div key={f.uid} className="follower-row">
+                                                <div className="follower-avatar">
+                                                    {f.avatar ? <img src={f.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 12 }} /> : f.username?.[0]?.toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <div style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 13 }}>{f.username}</div>
+                                                    <div style={{ color: '#666', fontSize: 10, fontWeight: 600 }}>{new Date(f.followedAt).toLocaleDateString('tr-TR')}</div>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <div style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 13 }}>{f.username}</div>
-                                                <div style={{ color: '#666', fontSize: 10, fontWeight: 600 }}>{new Date(f.followedAt).toLocaleDateString('tr-TR')}</div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Blocked Users Modal */}
-            {showBlocked && (
-                <div className="modal-overlay" onClick={() => setShowBlocked(false)}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2>Engellenenler</h2>
-                            <button className="close-modal" onClick={() => setShowBlocked(false)}>
-                                <i className="fa-solid fa-xmark"></i>
-                            </button>
-                        </div>
-                        <div className="modal-body">
-                            {blockedUsers.length === 0 ? (
-                                <p style={{ color: '#666', textAlign: 'center', padding: 20 }}>Henüz engellenen kullanıcı yok.</p>
-                            ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                    {blockedUsers.map(user => (
-                                        <div key={user.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#1a1d23', padding: 10, borderRadius: 12 }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                                <div style={{ width: 32, height: 32, background: '#333', borderRadius: '50%' }}>
-                                                    {user.avatar && <img src={user.avatar} style={{ width: '100%', height: '100%', borderRadius: '50%' }} />}
+            {
+                showBlocked && (
+                    <div className="modal-overlay" onClick={() => setShowBlocked(false)}>
+                        <div className="modal-content" onClick={e => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h2>Engellenenler</h2>
+                                <button className="close-modal" onClick={() => setShowBlocked(false)}>
+                                    <i className="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                            <div className="modal-body">
+                                {blockedUsers.length === 0 ? (
+                                    <p style={{ color: '#666', textAlign: 'center', padding: 20 }}>Henüz engellenen kullanıcı yok.</p>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                        {blockedUsers.map(user => (
+                                            <div key={user.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#1a1d23', padding: 10, borderRadius: 12 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                    <div style={{ width: 32, height: 32, background: '#333', borderRadius: '50%' }}>
+                                                        {user.avatar && <img src={user.avatar} style={{ width: '100%', height: '100%', borderRadius: '50%' }} />}
+                                                    </div>
+                                                    <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{user.username}</span>
                                                 </div>
-                                                <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{user.username}</span>
+                                                <button
+                                                    onClick={() => {
+                                                        actions.adminAction('unblock', user.id);
+                                                    }}
+                                                    style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)', padding: '8px 16px', borderRadius: 12, cursor: 'pointer', fontSize: 11, fontWeight: 900, transition: '0.2s' }}
+                                                >Engeli Kaldır</button>
                                             </div>
-                                            <button
-                                                onClick={() => {
-                                                    actions.adminAction('unblock', user.id);
-                                                }}
-                                                style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)', padding: '8px 16px', borderRadius: 12, cursor: 'pointer', fontSize: 11, fontWeight: 900, transition: '0.2s' }}
-                                            >Engeli Kaldır</button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Room Settings Modal */}
-            {showSettings && (
-                <div className="modal-overlay" onClick={() => setShowSettings(false)}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2>{t('room_settings')}</h2>
-                            <button className="close-modal" onClick={() => setShowSettings(false)}>
-                                <i className="fa-solid fa-xmark"></i>
-                            </button>
-                        </div>
-                        <div className="modal-body">
-                            {isAdmin && (
-                                <div className="setting-group">
-                                    <h3>Yönetim</h3>
-                                    <button onClick={() => {
-                                        if (confirm('Odayı silmek istediğine emin misin?')) {
-                                            actions.adminAction('delete_room');
-                                            onLeave();
-                                        }
-                                    }} className="action-btn danger" style={{ width: '100%', justifyContent: 'center' }}>
-                                        <i className="fa-solid fa-trash"></i>
-                                        <span>Odayı Sil</span>
-                                    </button>
-                                </div>
-                            )}
-
-                            {isAdmin ? (
-                                <div className="setting-group">
-                                    <h3>Oda Bilgileri</h3>
-                                    <div className="input-group">
-                                        <label>Oda İsmi</label>
-                                        <div style={{ display: 'flex', gap: 10 }}>
-                                            <input
-                                                defaultValue={roomState.name}
-                                                onBlur={(e) => actions.updateRoomName(e.target.value)}
-                                                maxLength={30}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="input-group">
-                                        <label>Oda Duyurusu</label>
-                                        <textarea
-                                            defaultValue={roomState.announcement}
-                                            onBlur={(e) => actions.updateAnnouncement(e.target.value)}
-                                            placeholder={t('announcement_placeholder')}
-                                            rows={3}
-                                            style={{
-                                                width: '100%', background: '#1a1d23', border: '1px solid #333',
-                                                borderRadius: 16, padding: '12px 16px', color: 'var(--text-primary)', fontSize: 13,
-                                                fontWeight: 600, outline: 'none', resize: 'none'
-                                            }}
-                                        />
-                                    </div>
-
-                                    <div className="input-group">
-                                        <label>Oda Arka Planı</label>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                            <label style={{
-                                                flex: 1, height: 52, borderRadius: 14,
-                                                border: '2px dashed rgba(139,92,246,0.5)',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                cursor: 'pointer', color: '#a78bfa', fontSize: 14, fontWeight: 700,
-                                                background: 'rgba(139,92,246,0.08)',
-                                                transition: 'all 0.2s ease',
-                                                gap: 8
-                                            }}>
-                                                <i className="fa-solid fa-image" style={{ fontSize: 18 }}></i>
-                                                Görsel Seç (Max 5MB)
-                                                <input
-                                                    type="file"
-                                                    accept="image/jpeg,image/png,image/webp,image/gif"
-                                                    style={{ display: 'none' }}
-                                                    onChange={async (e) => {
-                                                        const file = e.target.files?.[0];
-                                                        if (!file) return;
-                                                        showToast('⏳ Arka plan yükleniyor...');
-                                                        try {
-                                                            await actions.updateRoomBackground(file);
-                                                            // Başarı mesajı socket'ten gelecek (bg_upload_ok)
-                                                        } catch {
-                                                            showToast('❌ Yükleme başarısız!');
-                                                        }
-                                                    }}
-                                                />
-                                            </label>
-                                            {roomState.backgroundUrl && (
-                                                <div style={{
-                                                    width: 52, height: 52, borderRadius: 12,
-                                                    background: `url(${roomState.backgroundUrl}) center/cover`,
-                                                    border: '2px solid rgba(139,92,246,0.4)',
-                                                    flexShrink: 0
-                                                }} />
-                                            )}
-                                        </div>
-                                        <p style={{ fontSize: 11, color: '#666', marginTop: 6, fontWeight: 600 }}>
-                                            💡 JPEG, PNG veya WebP formatı desteklenir.
-                                        </p>
-                                    </div>
-
-
-
-                                    <div className="input-group" style={{ marginTop: 20 }}>
-                                        <label>Koltuk Düzeni (LV{boostLevel} – Max {roomState.maxSeatsByLevel || 8})</label>
-                                        <div style={{ display: 'flex', gap: 8 }}>
-                                            {/* LV1+: 8 koltuk */}
-                                            <button
-                                                onClick={() => actions.adminAction('change_layout', undefined, undefined, 8)}
-                                                style={{
-                                                    flex: 1, padding: 10, borderRadius: 12,
-                                                    background: roomState.seats.length === 8 ? 'var(--premium-gradient)' : '#1a1d23',
-                                                    border: `1px solid ${roomState.seats.length === 8 ? '#8b5cf6' : '#333'}`, color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 800
-                                                }}
-                                            >8 ⚡</button>
-                                            {/* LV2+: 12 koltuk */}
-                                            <button
-                                                onClick={() => actions.adminAction('change_layout', undefined, undefined, 12)}
-                                                disabled={boostLevel < 2}
-                                                style={{
-                                                    flex: 1, padding: 10, borderRadius: 12,
-                                                    background: roomState.seats.length === 12 ? 'var(--premium-gradient)' : '#1a1d23',
-                                                    border: `1px solid ${boostLevel < 2 ? '#222' : roomState.seats.length === 12 ? '#8b5cf6' : '#333'}`,
-                                                    color: boostLevel < 2 ? '#444' : '#fff', cursor: boostLevel < 2 ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 800
-                                                }}
-                                            >12 {boostLevel < 2 ? '🔒' : '🔥'}</button>
-                                            {/* LV3: 16 koltuk */}
-                                            <button
-                                                onClick={() => actions.adminAction('change_layout', undefined, undefined, 16)}
-                                                disabled={boostLevel < 3}
-                                                style={{
-                                                    flex: 1, padding: 10, borderRadius: 12,
-                                                    background: roomState.seats.length === 16 ? 'var(--premium-gradient)' : '#1a1d23',
-                                                    border: `1px solid ${boostLevel < 3 ? '#222' : roomState.seats.length === 16 ? '#8b5cf6' : '#333'}`,
-                                                    color: boostLevel < 3 ? '#444' : '#fff', cursor: boostLevel < 3 ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 800
-                                                }}
-                                            >16 💥</button>
-                                        </div>
-                                        {boostLevel < 2 && <p style={{ color: '#555', fontSize: 10, marginTop: 8, fontWeight: 700 }}>20 takıpçi ile LV2'de 12 koltuğu açabilirsiniz.</p>}
-                                        {boostLevel === 2 && <p style={{ color: '#555', fontSize: 10, marginTop: 8, fontWeight: 700 }}>100 takıpçi ile LV3'te 16 koltuğu açabilirsiniz.</p>}
-                                    </div>
-
-                                    <div className="input-group" style={{ marginTop: 20 }}>
-                                        <button
-                                            style={{ width: '100%', display: 'flex', flexDirection: 'row', justifyContent: 'space-between', padding: '16px', background: '#1a1d23', border: '1px solid #333', borderRadius: '16px', cursor: 'pointer', alignItems: 'center' }}
-                                            onClick={() => { setShowSettings(false); setShowChatSettings(true); }}
-                                        >
-                                            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                                                <i className="fa-solid fa-message" style={{ color: '#8b5cf6', fontSize: 16 }}></i> <span style={{ color: 'var(--text-primary)', fontSize: 14, fontWeight: 800 }}>{t('chat_settings')}</span>
-                                            </div>
-                                            <i className="fa-solid fa-chevron-right" style={{ color: '#555' }}></i>
+            {
+                showSettings && (
+                    <div className="modal-overlay" onClick={() => setShowSettings(false)}>
+                        <div className="modal-content" onClick={e => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h2>{t('room_settings')}</h2>
+                                <button className="close-modal" onClick={() => setShowSettings(false)}>
+                                    <i className="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                            <div className="modal-body">
+                                {isAdmin && (
+                                    <div className="setting-group">
+                                        <h3>Yönetim</h3>
+                                        <button onClick={() => {
+                                            if (confirm('Odayı silmek istediğine emin misin?')) {
+                                                actions.adminAction('delete_room');
+                                                onLeave();
+                                            }
+                                        }} className="action-btn danger" style={{ width: '100%', justifyContent: 'center' }}>
+                                            <i className="fa-solid fa-trash"></i>
+                                            <span>Odayı Sil</span>
                                         </button>
                                     </div>
-                                </div>
-                            ) : (
-                                <p style={{ color: '#888', textAlign: 'center' }}>{t('only_owner_can_change_settings')}</p>
-                            )}
+                                )}
+
+                                {isAdmin ? (
+                                    <div className="setting-group">
+                                        <h3>Oda Bilgileri</h3>
+                                        <div className="input-group">
+                                            <label>Oda İsmi</label>
+                                            <div style={{ display: 'flex', gap: 10 }}>
+                                                <input
+                                                    defaultValue={roomState.name}
+                                                    onBlur={(e) => actions.updateRoomName(e.target.value)}
+                                                    maxLength={30}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="input-group">
+                                            <label>Oda Duyurusu</label>
+                                            <textarea
+                                                defaultValue={roomState.announcement}
+                                                onBlur={(e) => actions.updateAnnouncement(e.target.value)}
+                                                placeholder={t('announcement_placeholder')}
+                                                rows={3}
+                                                style={{
+                                                    width: '100%', background: '#1a1d23', border: '1px solid #333',
+                                                    borderRadius: 16, padding: '12px 16px', color: 'var(--text-primary)', fontSize: 13,
+                                                    fontWeight: 600, outline: 'none', resize: 'none'
+                                                }}
+                                            />
+                                        </div>
+
+                                        <div className="input-group">
+                                            <label>Oda Arka Planı</label>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                <label style={{
+                                                    flex: 1, height: 52, borderRadius: 14,
+                                                    border: '2px dashed rgba(139,92,246,0.5)',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    cursor: 'pointer', color: '#a78bfa', fontSize: 14, fontWeight: 700,
+                                                    background: 'rgba(139,92,246,0.08)',
+                                                    transition: 'all 0.2s ease',
+                                                    gap: 8
+                                                }}>
+                                                    <i className="fa-solid fa-image" style={{ fontSize: 18 }}></i>
+                                                    Görsel Seç (Max 5MB)
+                                                    <input
+                                                        type="file"
+                                                        accept="image/jpeg,image/png,image/webp,image/gif"
+                                                        style={{ display: 'none' }}
+                                                        onChange={async (e) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (!file) return;
+                                                            showToast('⏳ Arka plan yükleniyor...');
+                                                            try {
+                                                                await actions.updateRoomBackground(file);
+                                                                // Başarı mesajı socket'ten gelecek (bg_upload_ok)
+                                                            } catch {
+                                                                showToast('❌ Yükleme başarısız!');
+                                                            }
+                                                        }}
+                                                    />
+                                                </label>
+                                                {roomState.backgroundUrl && (
+                                                    <div style={{
+                                                        width: 52, height: 52, borderRadius: 12,
+                                                        background: `url(${roomState.backgroundUrl}) center/cover`,
+                                                        border: '2px solid rgba(139,92,246,0.4)',
+                                                        flexShrink: 0
+                                                    }} />
+                                                )}
+                                            </div>
+                                            <p style={{ fontSize: 11, color: '#666', marginTop: 6, fontWeight: 600 }}>
+                                                💡 JPEG, PNG veya WebP formatı desteklenir.
+                                            </p>
+                                        </div>
+
+
+
+                                        <div className="input-group" style={{ marginTop: 20 }}>
+                                            <label>Koltuk Düzeni (LV{boostLevel} – Max {roomState.maxSeatsByLevel || 8})</label>
+                                            <div style={{ display: 'flex', gap: 8 }}>
+                                                {/* LV1+: 8 koltuk */}
+                                                <button
+                                                    onClick={() => actions.adminAction('change_layout', undefined, undefined, 8)}
+                                                    style={{
+                                                        flex: 1, padding: 10, borderRadius: 12,
+                                                        background: roomState.seats.length === 8 ? 'var(--premium-gradient)' : '#1a1d23',
+                                                        border: `1px solid ${roomState.seats.length === 8 ? '#8b5cf6' : '#333'}`, color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 800
+                                                    }}
+                                                >8 ⚡</button>
+                                                {/* LV2+: 12 koltuk */}
+                                                <button
+                                                    onClick={() => actions.adminAction('change_layout', undefined, undefined, 12)}
+                                                    disabled={boostLevel < 2}
+                                                    style={{
+                                                        flex: 1, padding: 10, borderRadius: 12,
+                                                        background: roomState.seats.length === 12 ? 'var(--premium-gradient)' : '#1a1d23',
+                                                        border: `1px solid ${boostLevel < 2 ? '#222' : roomState.seats.length === 12 ? '#8b5cf6' : '#333'}`,
+                                                        color: boostLevel < 2 ? '#444' : '#fff', cursor: boostLevel < 2 ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 800
+                                                    }}
+                                                >12 {boostLevel < 2 ? '🔒' : '🔥'}</button>
+                                                {/* LV3: 16 koltuk */}
+                                                <button
+                                                    onClick={() => actions.adminAction('change_layout', undefined, undefined, 16)}
+                                                    disabled={boostLevel < 3}
+                                                    style={{
+                                                        flex: 1, padding: 10, borderRadius: 12,
+                                                        background: roomState.seats.length === 16 ? 'var(--premium-gradient)' : '#1a1d23',
+                                                        border: `1px solid ${boostLevel < 3 ? '#222' : roomState.seats.length === 16 ? '#8b5cf6' : '#333'}`,
+                                                        color: boostLevel < 3 ? '#444' : '#fff', cursor: boostLevel < 3 ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 800
+                                                    }}
+                                                >16 💥</button>
+                                            </div>
+                                            {boostLevel < 2 && <p style={{ color: '#555', fontSize: 10, marginTop: 8, fontWeight: 700 }}>20 takıpçi ile LV2'de 12 koltuğu açabilirsiniz.</p>}
+                                            {boostLevel === 2 && <p style={{ color: '#555', fontSize: 10, marginTop: 8, fontWeight: 700 }}>100 takıpçi ile LV3'te 16 koltuğu açabilirsiniz.</p>}
+                                        </div>
+
+                                        <div className="input-group" style={{ marginTop: 20 }}>
+                                            <button
+                                                style={{ width: '100%', display: 'flex', flexDirection: 'row', justifyContent: 'space-between', padding: '16px', background: '#1a1d23', border: '1px solid #333', borderRadius: '16px', cursor: 'pointer', alignItems: 'center' }}
+                                                onClick={() => { setShowSettings(false); setShowChatSettings(true); }}
+                                            >
+                                                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                                                    <i className="fa-solid fa-message" style={{ color: '#8b5cf6', fontSize: 16 }}></i> <span style={{ color: 'var(--text-primary)', fontSize: 14, fontWeight: 800 }}>{t('chat_settings')}</span>
+                                                </div>
+                                                <i className="fa-solid fa-chevron-right" style={{ color: '#555' }}></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <p style={{ color: '#888', textAlign: 'center' }}>{t('only_owner_can_change_settings')}</p>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Chat Settings Modal */}
-            {showChatSettings && (
-                <div className="modal-overlay" onClick={() => setShowChatSettings(false)}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <i className="fa-solid fa-arrow-left" style={{ color: '#888', cursor: 'pointer', marginRight: 10, fontSize: 18 }} onClick={() => { setShowChatSettings(false); setShowSettings(true); }}></i>
-                            <h2 style={{ flex: 1 }}>{t('chat_settings')}</h2>
-                            <button className="close-modal" onClick={() => setShowChatSettings(false)}>
-                                <i className="fa-solid fa-xmark"></i>
-                            </button>
-                        </div>
-                        <div className="modal-body">
-                            <div className="setting-group">
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1a1d23', padding: '16px', borderRadius: '16px', border: '1px solid #333' }}>
-                                    <div style={{ paddingRight: 15 }}>
-                                        <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: 14, textTransform: 'none' }}>{t('slow_mode')}</h3>
-                                        <p style={{ margin: '4px 0 0', color: '#888', fontSize: 11, fontWeight: 600 }}>{t('chat_slow_mode_desc')}</p>
+            {
+                showChatSettings && (
+                    <div className="modal-overlay" onClick={() => setShowChatSettings(false)}>
+                        <div className="modal-content" onClick={e => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <i className="fa-solid fa-arrow-left" style={{ color: '#888', cursor: 'pointer', marginRight: 10, fontSize: 18 }} onClick={() => { setShowChatSettings(false); setShowSettings(true); }}></i>
+                                <h2 style={{ flex: 1 }}>{t('chat_settings')}</h2>
+                                <button className="close-modal" onClick={() => setShowChatSettings(false)}>
+                                    <i className="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                            <div className="modal-body">
+                                <div className="setting-group">
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1a1d23', padding: '16px', borderRadius: '16px', border: '1px solid #333' }}>
+                                        <div style={{ paddingRight: 15 }}>
+                                            <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: 14, textTransform: 'none' }}>{t('slow_mode')}</h3>
+                                            <p style={{ margin: '4px 0 0', color: '#888', fontSize: 11, fontWeight: 600 }}>{t('chat_slow_mode_desc')}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => actions.updateSlowMode(!roomState?.slowMode)}
+                                            style={{
+                                                width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
+                                                padding: 0, display: 'flex', alignItems: 'center', flexShrink: 0,
+                                                background: roomState?.slowMode ? '#22c55e' : '#333', transition: '0.3s'
+                                            }}
+                                        >
+                                            <div style={{
+                                                width: 20, height: 20, borderRadius: '50%', background: '#fff',
+                                                marginLeft: roomState?.slowMode ? 22 : 2, transition: '0.3s',
+                                                boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                                            }} />
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => actions.updateSlowMode(!roomState?.slowMode)}
-                                        style={{
-                                            width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
-                                            padding: 0, display: 'flex', alignItems: 'center', flexShrink: 0,
-                                            background: roomState?.slowMode ? '#22c55e' : '#333', transition: '0.3s'
-                                        }}
-                                    >
-                                        <div style={{
-                                            width: 20, height: 20, borderRadius: '50%', background: '#fff',
-                                            marginLeft: roomState?.slowMode ? 22 : 2, transition: '0.3s',
-                                            boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
-                                        }} />
-                                    </button>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1a1d23', padding: '16px', borderRadius: '16px', border: '1px solid #333', marginTop: 12 }}>
-                                    <div style={{ paddingRight: 15 }}>
-                                        <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: 14, textTransform: 'none' }}>{t('close_room_chat')}</h3>
-                                        <p style={{ margin: '4px 0 0', color: '#888', fontSize: 11, fontWeight: 600 }}>{t('normal_members_cannot_send_msg')}</p>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1a1d23', padding: '16px', borderRadius: '16px', border: '1px solid #333', marginTop: 12 }}>
+                                        <div style={{ paddingRight: 15 }}>
+                                            <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: 14, textTransform: 'none' }}>{t('close_room_chat')}</h3>
+                                            <p style={{ margin: '4px 0 0', color: '#888', fontSize: 11, fontWeight: 600 }}>{t('normal_members_cannot_send_msg')}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => actions.updateChatDisabled(!roomState?.chatDisabled)}
+                                            style={{
+                                                width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
+                                                padding: 0, display: 'flex', alignItems: 'center', flexShrink: 0,
+                                                background: roomState?.chatDisabled ? '#ef4444' : '#333', transition: '0.3s'
+                                            }}
+                                        >
+                                            <div style={{
+                                                width: 20, height: 20, borderRadius: '50%', background: '#fff',
+                                                marginLeft: roomState?.chatDisabled ? 22 : 2, transition: '0.3s',
+                                                boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                                            }} />
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => actions.updateChatDisabled(!roomState?.chatDisabled)}
-                                        style={{
-                                            width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
-                                            padding: 0, display: 'flex', alignItems: 'center', flexShrink: 0,
-                                            background: roomState?.chatDisabled ? '#ef4444' : '#333', transition: '0.3s'
-                                        }}
-                                    >
-                                        <div style={{
-                                            width: 20, height: 20, borderRadius: '50%', background: '#fff',
-                                            marginLeft: roomState?.chatDisabled ? 22 : 2, transition: '0.3s',
-                                            boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
-                                        }} />
-                                    </button>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Koltuk Izgaraşı - Dinamik Layout: 8/12/16'lık düzene göre CSS sınıfı */}
             <div className={`seat-grid-container-4x4 ${roomState.seats.length === 12 ? 'layout-12' :
@@ -1511,76 +1524,78 @@ export function PartyRoomInner({ roomId, onLeave, onBack: _onBack }: { roomId: s
             </div>
 
             {/* ── Announcement Board ── */}
-            {(roomState.announcement || isAdmin) && (
-                <div className={`notebook-style ${isAnnouncementExpanded ? 'expanded' : 'collapsed'}`} onClick={() => !isAnnouncementExpanded && setIsAnnouncementExpanded(true)}>
-                    <div className="notebook-rings"></div>
-                    <div className="notebook-header">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <div style={{ width: 22, height: 22, borderRadius: 6, background: 'var(--premium-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(124, 77, 255, 0.4)' }}>
-                                <i className="fa-solid fa-bullhorn" style={{ color: '#fff', fontSize: 10 }}></i>
-                            </div>
-                            <span style={{ fontSize: 11, fontWeight: 950, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('room_announcement')}</span>
-                        </div>
-                        <button
-                            onClick={(e) => { e.stopPropagation(); setIsAnnouncementExpanded(!isAnnouncementExpanded); }}
-                            className="notebook-toggle"
-                        >
-                            <i className={`fa-solid fa-chevron-${isAnnouncementExpanded ? 'left' : 'right'}`}></i>
-                        </button>
-                    </div>
-
-                    {isAnnouncementExpanded && (
-                        <div className="notebook-content">
-                            {isEditingAnnouncement ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                    <textarea
-                                        autoFocus
-                                        value={tempAnnouncement}
-                                        onChange={e => setTempAnnouncement(e.target.value)}
-                                        placeholder={t('announcement_placeholder')}
-                                        style={{ width: '100%', height: 100, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#fff', padding: 12, fontSize: 13, outline: 'none', resize: 'none' }}
-                                    />
-                                    <div style={{ display: 'flex', gap: 8 }}>
-                                        <button
-                                            onClick={() => {
-                                                _socket?.emit('update_announcement', tempAnnouncement);
-                                                setIsEditingAnnouncement(false);
-                                            }}
-                                            style={{ flex: 1, background: 'var(--premium-gradient)', color: '#fff', border: 'none', padding: '10px', borderRadius: 10, fontWeight: 800, fontSize: 12 }}
-                                        >
-                                            {t('save')}
-                                        </button>
-                                        <button
-                                            onClick={() => setIsEditingAnnouncement(false)}
-                                            style={{ flex: 1, background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', padding: '10px', borderRadius: 10, fontWeight: 800, fontSize: 12 }}
-                                        >
-                                            {t('cancel')}
-                                        </button>
-                                    </div>
+            {
+                (roomState.announcement || isAdmin) && (
+                    <div className={`notebook-style ${isAnnouncementExpanded ? 'expanded' : 'collapsed'}`} onClick={() => !isAnnouncementExpanded && setIsAnnouncementExpanded(true)}>
+                        <div className="notebook-rings"></div>
+                        <div className="notebook-header">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{ width: 22, height: 22, borderRadius: 6, background: 'var(--premium-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(124, 77, 255, 0.4)' }}>
+                                    <i className="fa-solid fa-bullhorn" style={{ color: '#fff', fontSize: 10 }}></i>
                                 </div>
-                            ) : (
-                                <>
-                                    <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, lineHeight: 1.6, margin: '0 0 16px 0', fontWeight: 600, maxHeight: 150, overflowY: 'auto' }} className="no-scrollbar">
-                                        {roomState.announcement || t('no_announcement_yet')}
-                                    </div>
-                                    {isAdmin && (
-                                        <button
-                                            onClick={() => {
-                                                setTempAnnouncement(roomState.announcement || '');
-                                                setIsEditingAnnouncement(true);
-                                            }}
-                                            style={{ width: '100%', background: 'rgba(139,92,246,0.2)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)', padding: '10px', borderRadius: 10, fontWeight: 800, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                                        >
-                                            <i className="fa-solid fa-pen-to-square"></i>
-                                            {t('edit_announcement')}
-                                        </button>
-                                    )}
-                                </>
-                            )}
+                                <span style={{ fontSize: 11, fontWeight: 950, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('room_announcement')}</span>
+                            </div>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setIsAnnouncementExpanded(!isAnnouncementExpanded); }}
+                                className="notebook-toggle"
+                            >
+                                <i className={`fa-solid fa-chevron-${isAnnouncementExpanded ? 'left' : 'right'}`}></i>
+                            </button>
                         </div>
-                    )}
-                </div>
-            )}
+
+                        {isAnnouncementExpanded && (
+                            <div className="notebook-content">
+                                {isEditingAnnouncement ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                        <textarea
+                                            autoFocus
+                                            value={tempAnnouncement}
+                                            onChange={e => setTempAnnouncement(e.target.value)}
+                                            placeholder={t('announcement_placeholder')}
+                                            style={{ width: '100%', height: 100, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#fff', padding: 12, fontSize: 13, outline: 'none', resize: 'none' }}
+                                        />
+                                        <div style={{ display: 'flex', gap: 8 }}>
+                                            <button
+                                                onClick={() => {
+                                                    _socket?.emit('update_announcement', tempAnnouncement);
+                                                    setIsEditingAnnouncement(false);
+                                                }}
+                                                style={{ flex: 1, background: 'var(--premium-gradient)', color: '#fff', border: 'none', padding: '10px', borderRadius: 10, fontWeight: 800, fontSize: 12 }}
+                                            >
+                                                {t('save')}
+                                            </button>
+                                            <button
+                                                onClick={() => setIsEditingAnnouncement(false)}
+                                                style={{ flex: 1, background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', padding: '10px', borderRadius: 10, fontWeight: 800, fontSize: 12 }}
+                                            >
+                                                {t('cancel')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, lineHeight: 1.6, margin: '0 0 16px 0', fontWeight: 600, maxHeight: 150, overflowY: 'auto' }} className="no-scrollbar">
+                                            {roomState.announcement || t('no_announcement_yet')}
+                                        </div>
+                                        {isAdmin && (
+                                            <button
+                                                onClick={() => {
+                                                    setTempAnnouncement(roomState.announcement || '');
+                                                    setIsEditingAnnouncement(true);
+                                                }}
+                                                style={{ width: '100%', background: 'rgba(139,92,246,0.2)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)', padding: '10px', borderRadius: 10, fontWeight: 800, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                                            >
+                                                <i className="fa-solid fa-pen-to-square"></i>
+                                                {t('edit_announcement')}
+                                            </button>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )
+            }
 
             {/* Chat Area */}
             <div className="chat-area-v9 no-scrollbar">
@@ -1639,218 +1654,226 @@ export function PartyRoomInner({ roomId, onLeave, onBack: _onBack }: { roomId: s
             </div>
 
             {/* Action Panel */}
-            {actionPanel && (
-                <div className="modal-overlay" onClick={() => setActionPanel(null)}>
-                    <div className="action-panel-bottom" onClick={e => e.stopPropagation()}>
-                        <div className="panel-header">
-                            {actionPanel.type === 'user' ? (
-                                <>
-                                    <img src={actionPanel.data.avatar} className="panel-avatar" />
-                                    <div className="panel-title">
-                                        <h3>{actionPanel.data.username}</h3>
-                                        <p>@{actionPanel.data.uid.slice(-6)}</p>
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="panel-title">
-                                    <h3>Koltuk {actionPanel.data + 1}</h3>
-                                    <p>Yönetici Kontrolü</p>
-                                </div>
-                            )}
-                        </div>
-                        <div className="panel-actions">
-                            {actionPanel.type === 'user' ? (
-                                <div className="user-action-grid">
-                                    <button
-                                        onClick={async () => {
-                                            const targetId = actionPanel.data.uid;
-                                            if (!targetId) return;
-                                            try {
-                                                if (SocialService.isFollowing(targetId)) {
-                                                    await SocialService.unfollowUser(targetId);
-                                                } else {
-                                                    await SocialService.followUser(targetId);
-                                                }
-                                                setActionPanel(null);
-                                            } catch (e: any) { alert(e.message); }
-                                        }}
-                                        className="action-btn"
-                                    >
-                                        <i className={`fa-solid ${SocialService.isFollowing(actionPanel.data.uid) ? 'fa-user-minus' : 'fa-user-plus'}`}></i>
-                                        <span>{SocialService.isFollowing(actionPanel.data.uid) ? t('unfollow') : t('follow')}</span>
-                                    </button>
-
-                                    <button
-                                        onClick={() => {
-                                            if (actionPanel?.data?.uid) {
-                                                navigate('/profile/' + actionPanel.data.uid);
-                                                _onBack?.();
-                                                setActionPanel(null);
-                                            }
-                                        }}
-                                        className="action-btn"
-                                    >
-                                        <i className="fa-solid fa-user"></i>
-                                        <span>Profil Gör</span>
-                                    </button>
-                                    <button onClick={() => { setMsg(`@${actionPanel.data.username} `); setActionPanel(null); }} className="action-btn">
-                                        <i className="fa-solid fa-at"></i>
-                                        <span>Bahset</span>
-                                    </button>
-                                    {isAdmin && (
-                                        <>
-                                            <button onClick={() => handleAction('mute')} className="action-btn warning">
-                                                <i className="fa-solid fa-microphone-slash"></i>
-                                                <span>{roomState.mutedUsers?.includes(actionPanel.data.uid) ? 'Sesi Aç' : 'Sustur'}</span>
-                                            </button>
-                                            <button onClick={() => handleAction('kick')} className="action-btn danger">
-                                                <i className="fa-solid fa-user-xmark"></i>
-                                                <span>Odadan At</span>
-                                            </button>
-                                            <button onClick={() => handleAction('block')} className="action-btn danger">
-                                                <i className="fa-solid fa-ban"></i>
-                                                <span>Engelle</span>
-                                            </button>
-                                        </>
-                                    )}
-                                    {pb.authStore.model?.id === roomState.ownerUid && actionPanel.data.uid !== roomState.ownerUid && (
-                                        <div style={{ gridColumn: '1 / -1', background: 'rgba(139,92,246,0.1)', border: '1px dashed #8b5cf6', borderRadius: 12, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                            <button
-                                                onClick={() => handleAction('toggle_mod')}
-                                                className="action-btn"
-                                                style={{ background: 'var(--premium-gradient)', color: '#fff', fontWeight: 800, border: 'none' }}
-                                            >
-                                                <i className="fa-solid fa-user-shield"></i>
-                                                <span>{roomState.admins?.includes(actionPanel.data.uid) ? 'Moderatörlüğü Al' : 'Moderatör Yap'}</span>
-                                            </button>
-                                            <p style={{ color: '#a78bfa', fontSize: 11, textAlign: 'center', margin: 0, fontWeight: 700 }}>
-                                                Bu yetki, odada oda silme işlemi dışında tüm işlemleri yapabilmesini sağlar.
-                                            </p>
+            {
+                actionPanel && (
+                    <div className="modal-overlay" onClick={() => setActionPanel(null)}>
+                        <div className="action-panel-bottom" onClick={e => e.stopPropagation()}>
+                            <div className="panel-header">
+                                {actionPanel.type === 'user' ? (
+                                    <>
+                                        <img src={actionPanel.data.avatar} className="panel-avatar" />
+                                        <div className="panel-title">
+                                            <h3>{actionPanel.data.username}</h3>
+                                            <p>@{actionPanel.data.uid.slice(-6)}</p>
                                         </div>
-                                    )}
-                                </div>
-                            ) : (
-                                <button onClick={() => handleAction('lock_seat')} className="action-btn">
-                                    <i className={`fa-solid ${roomState.lockedSeats[actionPanel.data] ? 'fa-lock-open' : 'fa-lock'}`}></i>
-                                    <span>{roomState.lockedSeats[actionPanel.data] ? 'Kilidi Aç' : 'Koltuk Kilitle'}</span>
-                                </button>
-                            )}
+                                    </>
+                                ) : (
+                                    <div className="panel-title">
+                                        <h3>Koltuk {actionPanel.data + 1}</h3>
+                                        <p>Yönetici Kontrolü</p>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="panel-actions">
+                                {actionPanel.type === 'user' ? (
+                                    <div className="user-action-grid">
+                                        <button
+                                            onClick={async () => {
+                                                const targetId = actionPanel.data.uid;
+                                                if (!targetId) return;
+                                                try {
+                                                    if (SocialService.isFollowing(targetId)) {
+                                                        await SocialService.unfollowUser(targetId);
+                                                    } else {
+                                                        await SocialService.followUser(targetId);
+                                                    }
+                                                    setActionPanel(null);
+                                                } catch (e: any) { alert(e.message); }
+                                            }}
+                                            className="action-btn"
+                                        >
+                                            <i className={`fa-solid ${SocialService.isFollowing(actionPanel.data.uid) ? 'fa-user-minus' : 'fa-user-plus'}`}></i>
+                                            <span>{SocialService.isFollowing(actionPanel.data.uid) ? t('unfollow') : t('follow')}</span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => {
+                                                if (actionPanel?.data?.uid) {
+                                                    navigate('/profile/' + actionPanel.data.uid);
+                                                    _onBack?.();
+                                                    setActionPanel(null);
+                                                }
+                                            }}
+                                            className="action-btn"
+                                        >
+                                            <i className="fa-solid fa-user"></i>
+                                            <span>Profil Gör</span>
+                                        </button>
+                                        <button onClick={() => { setMsg(`@${actionPanel.data.username} `); setActionPanel(null); }} className="action-btn">
+                                            <i className="fa-solid fa-at"></i>
+                                            <span>Bahset</span>
+                                        </button>
+                                        {isAdmin && (
+                                            <>
+                                                <button onClick={() => handleAction('mute')} className="action-btn warning">
+                                                    <i className="fa-solid fa-microphone-slash"></i>
+                                                    <span>{roomState.mutedUsers?.includes(actionPanel.data.uid) ? 'Sesi Aç' : 'Sustur'}</span>
+                                                </button>
+                                                <button onClick={() => handleAction('kick')} className="action-btn danger">
+                                                    <i className="fa-solid fa-user-xmark"></i>
+                                                    <span>Odadan At</span>
+                                                </button>
+                                                <button onClick={() => handleAction('block')} className="action-btn danger">
+                                                    <i className="fa-solid fa-ban"></i>
+                                                    <span>Engelle</span>
+                                                </button>
+                                            </>
+                                        )}
+                                        {pb.authStore.model?.id === roomState.ownerUid && actionPanel.data.uid !== roomState.ownerUid && (
+                                            <div style={{ gridColumn: '1 / -1', background: 'rgba(139,92,246,0.1)', border: '1px dashed #8b5cf6', borderRadius: 12, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                                <button
+                                                    onClick={() => handleAction('toggle_mod')}
+                                                    className="action-btn"
+                                                    style={{ background: 'var(--premium-gradient)', color: '#fff', fontWeight: 800, border: 'none' }}
+                                                >
+                                                    <i className="fa-solid fa-user-shield"></i>
+                                                    <span>{roomState.admins?.includes(actionPanel.data.uid) ? 'Moderatörlüğü Al' : 'Moderatör Yap'}</span>
+                                                </button>
+                                                <p style={{ color: '#a78bfa', fontSize: 11, textAlign: 'center', margin: 0, fontWeight: 700 }}>
+                                                    Bu yetki, odada oda silme işlemi dışında tüm işlemleri yapabilmesini sağlar.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <button onClick={() => handleAction('lock_seat')} className="action-btn">
+                                        <i className={`fa-solid ${roomState.lockedSeats[actionPanel.data] ? 'fa-lock-open' : 'fa-lock'}`}></i>
+                                        <span>{roomState.lockedSeats[actionPanel.data] ? 'Kilidi Aç' : 'Koltuk Kilitle'}</span>
+                                    </button>
+                                )}
+                            </div>
+                            <button className="panel-cancel" onClick={() => setActionPanel(null)}>{t('close')}</button>
                         </div>
-                        <button className="panel-cancel" onClick={() => setActionPanel(null)}>{t('close')}</button>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* ===== PAYLAŞIM MODALI ===== */}
-            {showShareModal && (
-                <div className="modal-overlay" onClick={() => setShowShareModal(false)}>
-                    <div className="modal-content share-modal-v9" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h2>{t('share_room')}</h2>
-                            <button className="close-modal" onClick={() => setShowShareModal(false)}>
-                                <i className="fa-solid fa-xmark"></i>
-                            </button>
-                        </div>
-                        <div className="modal-body">
-                            <div className="share-preview-card">
-                                <div className="spc-msg-input">
-                                    <label>{t('your_message_optional')}</label>
-                                    <textarea
-                                        placeholder={`${pb.authStore.model?.username} sizi ${roomState.name} odasına davet ediyor! 🎙️`}
-                                        value={shareMsg}
-                                        onChange={e => setShareMsg(e.target.value)}
-                                    />
-                                </div>
-
-                                <div className="spc-room-card">
-                                    <div className="spc-room-visual">
-                                        {roomState.ownerAvatar ? (
-                                            <img src={roomState.ownerAvatar} alt="" />
-                                        ) : (
-                                            <div className="spc-room-placeholder">🎙️</div>
-                                        )}
-                                        <div className="spc-room-badges">
-                                            <span><i className="fa-solid fa-user"></i> {roomState.viewerCount}</span>
-                                            {roomState.seatedCount > 0 && <span><i className="fa-solid fa-microphone"></i> {roomState.seatedCount}</span>}
-                                        </div>
-                                    </div>
-                                    <div className="spc-room-info">
-                                        <div className="spc-room-name">{roomState.name}</div>
-                                        <div className="spc-room-owner">@{roomState.ownerName} &bull; Oda Sahibi</div>
-                                    </div>
-                                    <div className="spc-room-join-tag">Hemen Katıl <i className="fa-solid fa-chevron-right"></i></div>
-                                </div>
+            {
+                showShareModal && (
+                    <div className="modal-overlay" onClick={() => setShowShareModal(false)}>
+                        <div className="modal-content share-modal-v9" onClick={e => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h2>{t('share_room')}</h2>
+                                <button className="close-modal" onClick={() => setShowShareModal(false)}>
+                                    <i className="fa-solid fa-xmark"></i>
+                                </button>
                             </div>
+                            <div className="modal-body">
+                                <div className="share-preview-card">
+                                    <div className="spc-msg-input">
+                                        <label>{t('your_message_optional')}</label>
+                                        <textarea
+                                            placeholder={`${pb.authStore.model?.username} sizi ${roomState.name} odasına davet ediyor! 🎙️`}
+                                            value={shareMsg}
+                                            onChange={e => setShareMsg(e.target.value)}
+                                        />
+                                    </div>
 
-                            <div className="share-actions-v9">
-                                <button className="share-btn-main post" onClick={async () => {
-                                    setIsSharing(true);
-                                    try {
-                                        const defaultMsg = `${pb.authStore.model?.username} sizi ${roomState.name} odasına davet ediyor! 🎙️`;
-                                        const finalMsg = shareMsg.trim() || defaultMsg;
+                                    <div className="spc-room-card">
+                                        <div className="spc-room-visual">
+                                            {roomState.ownerAvatar ? (
+                                                <img src={roomState.ownerAvatar} alt="" />
+                                            ) : (
+                                                <div className="spc-room-placeholder">🎙️</div>
+                                            )}
+                                            <div className="spc-room-badges">
+                                                <span><i className="fa-solid fa-user"></i> {roomState.viewerCount}</span>
+                                                {roomState.seatedCount > 0 && <span><i className="fa-solid fa-microphone"></i> {roomState.seatedCount}</span>}
+                                            </div>
+                                        </div>
+                                        <div className="spc-room-info">
+                                            <div className="spc-room-name">{roomState.name}</div>
+                                            <div className="spc-room-owner">@{roomState.ownerName} &bull; Oda Sahibi</div>
+                                        </div>
+                                        <div className="spc-room-join-tag">Hemen Katıl <i className="fa-solid fa-chevron-right"></i></div>
+                                    </div>
+                                </div>
 
-                                        await pb.collection('posts').create({
-                                            content: `[ROOM_INVITE]${JSON.stringify({
-                                                roomId: roomId,
-                                                roomName: roomState.name,
-                                                ownerName: roomState.ownerName,
-                                                ownerAvatar: roomState.ownerAvatar,
-                                                viewerCount: roomState.viewerCount,
-                                                seatedCount: roomState.seatedCount,
-                                                message: finalMsg
-                                            })}`,
-                                            author: pb.authStore.model?.id
-                                        });
+                                <div className="share-actions-v9">
+                                    <button className="share-btn-main post" onClick={async () => {
+                                        setIsSharing(true);
+                                        try {
+                                            const defaultMsg = `${pb.authStore.model?.username} sizi ${roomState.name} odasına davet ediyor! 🎙️`;
+                                            const finalMsg = shareMsg.trim() || defaultMsg;
+
+                                            await pb.collection('posts').create({
+                                                content: `[ROOM_INVITE]${JSON.stringify({
+                                                    roomId: roomId,
+                                                    roomName: roomState.name,
+                                                    ownerName: roomState.ownerName,
+                                                    ownerAvatar: roomState.ownerAvatar,
+                                                    viewerCount: roomState.viewerCount,
+                                                    seatedCount: roomState.seatedCount,
+                                                    message: finalMsg
+                                                })}`,
+                                                author: pb.authStore.model?.id
+                                            });
+
+                                            window.dispatchEvent(new CustomEvent('in-app-notification', {
+                                                detail: { title: t('shared'), body: t('shared_desc') }
+                                            }));
+                                            setShowShareModal(false);
+                                        } catch (e) {
+                                            alert(t('post_error'));
+                                        } finally {
+                                            setIsSharing(false);
+                                        }
+                                    }} disabled={isSharing}>
+                                        <i className="fa-solid fa-paper-plane"></i>
+                                        <span>{isSharing ? t('sharing') : t('share_post')}</span>
+                                    </button>
+
+                                    <button className="share-btn-main link" onClick={() => {
+                                        const shareLink = `https://lovemtch.shop/join-room/${roomId}`;
+                                        navigator.clipboard.writeText(shareLink);
 
                                         window.dispatchEvent(new CustomEvent('in-app-notification', {
-                                            detail: { title: t('shared'), body: t('shared_desc') }
+                                            detail: {
+                                                title: '🔗 Bağlantı Kopyalandı',
+                                                body: 'Bu link mobil uygulamayı açar, yoksa Play Store\'a yönlendirir.'
+                                            }
                                         }));
                                         setShowShareModal(false);
-                                    } catch (e) {
-                                        alert(t('post_error'));
-                                    } finally {
-                                        setIsSharing(false);
-                                    }
-                                }} disabled={isSharing}>
-                                    <i className="fa-solid fa-paper-plane"></i>
-                                    <span>{isSharing ? t('sharing') : t('share_post')}</span>
-                                </button>
-
-                                <button className="share-btn-main link" onClick={() => {
-                                    const shareLink = `https://lovemtch.shop/join-room/${roomId}`;
-                                    navigator.clipboard.writeText(shareLink);
-
-                                    window.dispatchEvent(new CustomEvent('in-app-notification', {
-                                        detail: {
-                                            title: '🔗 Bağlantı Kopyalandı',
-                                            body: 'Bu link mobil uygulamayı açar, yoksa Play Store\'a yönlendirir.'
-                                        }
-                                    }));
-                                    setShowShareModal(false);
-                                }}>
-                                    <i className="fa-solid fa-link"></i>
-                                    <span>Bağlantıyı Kopyala</span>
-                                </button>
+                                    }}>
+                                        <i className="fa-solid fa-link"></i>
+                                        <span>Bağlantıyı Kopyala</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Full Screen Video */}
-            {fullScreenStream && (
-                <div className="full-screen-video" onClick={() => setFullScreenStream(null)}>
-                    <VideoPreview stream={fullScreenStream} />
-                    <button className="close-full-video"><i className="fa-solid fa-xmark"></i></button>
-                </div>
-            )}
+            {
+                fullScreenStream && (
+                    <div className="full-screen-video" onClick={() => setFullScreenStream(null)}>
+                        <VideoPreview stream={fullScreenStream} />
+                        <button className="close-full-video"><i className="fa-solid fa-xmark"></i></button>
+                    </div>
+                )
+            }
 
             {/* Minimal Custom Toast */}
-            {toastMsg && (
-                <div className="custom-toast">
-                    {toastMsg}
-                </div>
-            )}
+            {
+                toastMsg && (
+                    <div className="custom-toast">
+                        {toastMsg}
+                    </div>
+                )
+            }
 
             {/* Bottom Bar */}
             <footer className="footer-v13">
@@ -1967,8 +1990,71 @@ export function PartyRoomInner({ roomId, onLeave, onBack: _onBack }: { roomId: s
             </footer>
 
             <style>{`
-                .lm-room-v9 { height: 100%; position: relative; background: var(--bg-primary); display: flex; flex-direction: column; overflow: hidden; }
-                .room-bg-layer { position: absolute; inset: 0; z-index: 0; }
+                .lm-room-v9 { height: 100%; position: relative; background: #08090d; display: flex; flex-direction: column; overflow: hidden; }
+                .room-bg-layer { 
+                    position: absolute; inset: 0; z-index: 0; 
+                    background: radial-gradient(circle at 50% 50%, #1a1b26 0%, #08090d 100%);
+                }
+                
+                /* Arkaplan Parçacıkları */
+                .bg-particles { position: absolute; inset: 0; pointer-events: none; }
+                .particle { position: absolute; background: #8b5cf6; border-radius: 50%; filter: blur(2px); opacity: 0.2; animation: floatParticle 20s infinite linear; }
+                @keyframes floatParticle {
+                    0% { transform: translateY(100vh) scale(0); opacity: 0; }
+                    20% { opacity: 0.4; }
+                    100% { transform: translateY(-100px) scale(1.5); opacity: 0; }
+                }
+
+                /* Seat Styling */
+                .seat-wrapper-v9 { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+                .circle-v9 {
+                    position: relative; width: 68px; height: 68px; border-radius: 24px;
+                    background: rgba(255,255,255,0.03); border: 1.5px solid rgba(255,255,255,0.06);
+                    display: flex; align-items: center; justify-content: center;
+                    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    cursor: pointer;
+                }
+                .circle-v9:active { transform: scale(0.92); }
+                .circle-v9.active { background: rgba(139, 92, 246, 0.1); border-color: rgba(139, 92, 246, 0.3); }
+                .circle-v9.talking { border-color: #8b5cf6; box-shadow: 0 0 20px rgba(139, 92, 246, 0.4); }
+                .circle-v9.locked { background: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.2); }
+
+                .seat-inner-container { position: relative; width: 100%; height: 100%; border-radius: inherit; overflow: hidden; z-index: 2; }
+                .video-container { width: 100%; height: 100%; }
+                .avatar-img { width: 100%; height: 100%; object-fit: cover; }
+                
+                .empty-seat { color: rgba(255,255,255,0.2); font-size: 18px; }
+                .circle-v9.locked .empty-seat { color: #ef4444; }
+
+                .seat-border-glow {
+                    position: absolute; inset: -3px; border-radius: 27px;
+                    background: linear-gradient(135deg, #8b5cf6, #ec4899);
+                    opacity: 0; transition: 0.3s; z-index: 1;
+                }
+                .circle-v9.talking .seat-border-glow { opacity: 0.6; animation: borderPulse 1.5s infinite; }
+                @keyframes borderPulse { 0% { opacity: 0.3; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.05); } 100% { opacity: 0.3; transform: scale(1); } }
+
+                .speaking-waves { position: absolute; inset: -15px; pointer-events: none; z-index: 0; }
+                .wave { position: absolute; inset: 0; border: 2px solid #8b5cf6; border-radius: 24px; opacity: 0; animation: waveAnim 2s infinite; }
+                .wave:nth-child(2) { animation-delay: 0.6s; }
+                .wave:nth-child(3) { animation-delay: 1.2s; }
+                @keyframes waveAnim { 0% { transform: scale(1); opacity: 0.5; } 100% { transform: scale(1.8); opacity: 0; } }
+
+                .host-badge, .leader-badge {
+                    position: absolute; bottom: -4px; right: -4px; width: 22px; height: 22px;
+                    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+                    font-size: 10px; color: #fff; z-index: 10; border: 2px solid #08090d;
+                }
+                .host-badge { background: linear-gradient(135deg, #f59e0b, #ef4444); }
+                .leader-badge { background: linear-gradient(135deg, #3b82f6, #8b5cf6); }
+
+                .name-tag-v10 {
+                    background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
+                    padding: 4px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);
+                    max-width: 80px; text-align: center;
+                }
+                .name-text { color: rgba(255,255,255,0.8); font-size: 10px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+                .name-tag-v10.host .name-text { color: #fcd34d; }
 
                 /* ===== YENİ HEADER STİLİ ===== */
                 .room-header-v9 {

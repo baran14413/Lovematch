@@ -76,26 +76,33 @@ export default function HomePage({ onOpenParty, onOpen1v1Match }: { onOpenParty:
         if (!newPostText.trim() && !selectedImage) return;
         setIsPosting(true);
         try {
-            const formData = new FormData();
-            formData.append('content', newPostText);
-            formData.append('author', pb.authStore.model?.id || '');
+            // Resim varsa FormData ile gönder (dosya yükleme zorunluluğu)
             if (selectedImage) {
+                const formData = new FormData();
+                formData.append('content', newPostText.trim());
+                formData.append('author', pb.authStore.model?.id || '');
                 formData.append('image', selectedImage);
+                await pb.collection('posts').create(formData);
+            } else {
+                // Sadece metin varsa JSON ile gönder (daha güvenilir)
+                await pb.collection('posts').create({
+                    content: newPostText.trim(),
+                    author: pb.authStore.model?.id || '',
+                    likes: [],
+                    comments: [],
+                });
             }
-            // PocketBase accepts FormData for file uploads. Explicitly set defaults for JSON/Relation fields.
-            formData.append('likes', '[]');
-            formData.append('comments', '[]');
-
-            await pb.collection('posts').create(formData);
 
             setNewPostText('');
             setSelectedImage(null);
             setImagePreview(null);
             setShowPostModal(false);
-            fetchData(); // Listeyi yenile
-        } catch (err) {
-            console.error(t('post_error'), err);
-            alert(t('not_shared'));
+            fetchData(); // Postu anında listele
+        } catch (err: any) {
+            console.error('[Post] Oluşturma hatası:', err);
+            // PocketBase hata detayını göster
+            const detail = err?.data?.data ? JSON.stringify(err.data.data) : err?.message || 'Bilinmeyen hata';
+            alert(`Paylaşım başarısız! \n${detail}`);
         } finally {
             setIsPosting(false);
         }

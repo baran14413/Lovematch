@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper functions
+    // ── Yardımcı Fonksiyonlar ──────────────────────────────────────────────
     function isSignedIn() {
       return request.auth != null;
     }
@@ -11,48 +11,84 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Default: Deny all (Safety first)
+    // Varsayılan: Her şey yasak (güvenlik önce)
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Users Collection
+    // ── Kullanıcılar ──────────────────────────────────────────────────────
     match /users/{userId} {
       allow read: if true;
+      // Kendi profilini yazabilir
       allow write: if isOwner(userId);
     }
     
-    // Posts Collection
+    // ── Gönderiler (Posts) ────────────────────────────────────────────────
     match /posts/{postId} {
       allow read: if true;
+      // Giriş yapmış herkes post oluşturabilir
       allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (resource.data.author == request.auth.uid);
+      // Sadece post sahibi güncelleyebilir/silebilir
+      allow update, delete: if isSignedIn() && resource.data.author == request.auth.uid;
     }
     
-    // Rooms Collection
+    // ── Parti Odaları ─────────────────────────────────────────────────────
     match /rooms/{roomId} {
       allow read: if true;
+      // Giriş yapmış herkes oda oluşturabilir
       allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (resource.data.ownerUid == request.auth.uid);
+      // Oda sahibi veya admin SDK (server) güncelleyebilir
+      // NOT: Server-side admin SDK zaten bu kuralı bypass eder
+      // Client-side: sadece oda sahibi
+      allow update: if isSignedIn();   // Koltuk güncellemeleri için tüm giriş yapmışlara izin
+      allow delete: if isSignedIn() && resource.data.ownerUid == request.auth.uid;
     }
 
-    // Direct Messages
+    // ── Direkt Mesajlar ───────────────────────────────────────────────────
     match /direct_messages/{msgId} {
-      allow read: if isSignedIn() && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
-      allow create: if isSignedIn() && (request.resource.data.fromUid == request.auth.uid);
-      allow update: if isSignedIn() && (resource.data.toUid == request.auth.uid);
+      allow read: if isSignedIn() && (
+        resource.data.fromUid == request.auth.uid ||
+        resource.data.toUid == request.auth.uid
+      );
+      allow create: if isSignedIn() && request.resource.data.fromUid == request.auth.uid;
+      // Okundu işareti için alıcı güncelleyebilir
+      allow update: if isSignedIn() && (
+        resource.data.toUid == request.auth.uid ||
+        resource.data.fromUid == request.auth.uid
+      );
     }
 
-    // Notifications
+    // ── Bildirimler ────────────────────────────────────────────────────────
     match /notifications/{notifId} {
-      allow read: if isSignedIn() && (resource.data.toUid == request.auth.uid);
-      allow write: if isSignedIn();
+      // Sadece kendine ait bildirimleri oku
+      allow read: if isSignedIn() && resource.data.user == request.auth.uid;
+      // Herhangi bir giriş yapmış kullanıcı bildirim oluşturabilir (arkadaşlık istekleri vb.)
+      allow create: if isSignedIn();
+      // Sadece sahibi güncelleyebilir (okundu işareti)
+      allow update: if isSignedIn() && resource.data.user == request.auth.uid;
     }
 
-    // Signaling (WebRTC)
+    // ── WebRTC Sinyalleşme ─────────────────────────────────────────────────
     match /signaling/{sigId} {
-      allow read, delete: if isSignedIn() && (resource.data.toUid == request.auth.uid);
-      allow create: if isSignedIn() && (request.resource.data.fromUid == request.auth.uid);
+      allow read, delete: if isSignedIn() && resource.data.toUid == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.fromUid == request.auth.uid;
+    }
+
+    // ── Arkadaşlık İstekleri ───────────────────────────────────────────────
+    match /friend_requests/{reqId} {
+      allow read: if isSignedIn() && (
+        resource.data.from_user == request.auth.uid ||
+        resource.data.to_user == request.auth.uid
+      );
+      allow create: if isSignedIn() && request.resource.data.from_user == request.auth.uid;
+      allow update: if isSignedIn() && (
+        resource.data.from_user == request.auth.uid ||
+        resource.data.to_user == request.auth.uid
+      );
+      allow delete: if isSignedIn() && (
+        resource.data.from_user == request.auth.uid ||
+        resource.data.to_user == request.auth.uid
+      );
     }
   }
 }
