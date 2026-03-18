@@ -339,9 +339,10 @@ export function usePartyRoom(roomId: string) {
             // Odaya girince koltukta olan herkesten offer iste (henüz bağlı değilsek)
             if (data.seats) {
                 data.seats.forEach((seat: any) => {
-                    if (seat && seat.uid && seat.uid !== socket?.id) {
-                        if (!peers.current.has(seat.uid)) {
-                            socket?.emit('request_offer', { to: seat.uid });
+                    if (seat && (seat.uid || seat.socketId) && (seat.uid !== pb.authStore.model?.id)) {
+                        const targetId = seat.uid || seat.id;
+                        if (!peers.current.has(targetId)) {
+                            socket?.emit('request_offer', { to: targetId });
                         }
                     }
                 });
@@ -360,10 +361,9 @@ export function usePartyRoom(roomId: string) {
         };
 
         const onPeerMicOn = (data: any) => {
-            // Karşı taraf mic açtı → SADECE biz de aktif stream varsa offer gönder
-            // (sonsuz döngü / çarpma engellemek için)
-            if (data.socketId && localStream.current) {
-                socket.emit('request_offer', { to: data.socketId });
+            // Karşı taraf mic açtı → Teklif iste (Dinleyiciler de duyabilsin diye localStream kontrolü kaldırıldı)
+            if (data.from || data.socketId) {
+                socket.emit('request_offer', { to: data.from || data.socketId });
             }
         };
 

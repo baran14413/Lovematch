@@ -263,31 +263,32 @@ function BottomNav({ hide }: { hide?: boolean }) {
             </div>
 
             <style>{`
+                .app-container {
+                    display: flex;
+                    flex-direction: column;
+                    height: 100vh;
+                    overflow: hidden;
+                    padding-bottom: 60px; /* Alttaki barın yüksekliği kadar boşluk */
+                }
                 .bottom-nav-v2-container {
                     position: fixed;
-                    bottom: 8px;
+                    bottom: 0;
                     left: 0;
                     right: 0;
                     display: flex;
                     justify-content: center;
                     z-index: 2000;
-                    pointer-events: none;
+                    background: #0f1115;
+                    border-top: 1px solid rgba(255,255,255,0.08);
                 }
                 .bottom-nav-v2 {
-                    pointer-events: auto;
-                    width: 94%;
-                    max-width: 420px;
-                    height: 58px;
-                    background: var(--glass-bg-alt);
-                    backdrop-filter: blur(20px);
-                    -webkit-backdrop-filter: blur(20px);
-                    border-radius: 20px;
-                    border: 1px solid var(--glass-border);
+                    width: 100%;
+                    max-width: 500px;
+                    height: 60px;
                     display: flex;
                     justify-content: space-around;
                     align-items: center;
-                    padding: 0 8px;
-                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+                    padding: 0 10px;
                 }
                 .nav-item-v2 {
                     display: flex;
@@ -295,59 +296,31 @@ function BottomNav({ hide }: { hide?: boolean }) {
                     align-items: center;
                     justify-content: center;
                     text-decoration: none;
-                    color: var(--text-on-glass-dim);
-                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    color: rgba(255,255,255,0.4);
+                    transition: all 0.2s;
                     flex: 1;
                     height: 100%;
-                    position: relative;
                 }
                 .nav-item-v2.active {
                     color: #fff;
                 }
                 .nav-icon-wrapper {
                     position: relative;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    margin-bottom: 2px;
+                    margin-bottom: 3px;
                 }
                 .nav-item-v2 i {
-                    font-size: 19px;
-                    z-index: 2;
-                    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    font-size: 20px;
                 }
                 .nav-item-v2.active i {
-                    transform: translateY(-2px) scale(1.1);
                     color: #a78bfa;
-                    filter: drop-shadow(0 0 8px rgba(167, 139, 250, 0.5));
-                }
-                .active-glow {
-                    position: absolute;
-                    width: 35px;
-                    height: 35px;
-                    background: radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, transparent 70%);
-                    border-radius: 50%;
-                    z-index: 1;
-                    animation: glowPulse 2s infinite alternate;
-                }
-                @keyframes glowPulse {
-                    from { transform: scale(0.8); opacity: 0.5; }
-                    to { transform: scale(1.2); opacity: 1; }
                 }
                 .nav-label-v2 {
-                    font-size: 9px;
-                    font-weight: 800;
-                    letter-spacing: 0.3px;
-                    transition: all 0.3s;
-                }
-                .nav-item-v2.active .nav-label-v2 {
-                    color: #fff;
-                    transform: scale(1.05);
+                    font-size: 10px;
+                    font-weight: 700;
                 }
                 @media (max-width: 360px) {
-                    .bottom-nav-v2 { width: 95%; height: 58px; }
-                    .nav-item-v2 i { font-size: 17px; }
-                    .nav-label-v2 { font-size: 8px; }
+                    .bottom-nav-v2 { height: 55px; }
+                    .nav-item-v2 i { font-size: 18px; }
                 }
             `}</style>
         </div>

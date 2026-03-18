@@ -55,6 +55,8 @@ export default function HomePage({ onOpenParty, onOpen1v1Match }: { onOpenParty:
 
 
     const [showPostModal, setShowPostModal] = useState(false);
+    const [selectedPost, setSelectedPost] = useState<any>(null);
+    const [showComments, setShowComments] = useState(false);
     const [newPostText, setNewPostText] = useState('');
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -146,7 +148,51 @@ export default function HomePage({ onOpenParty, onOpen1v1Match }: { onOpenParty:
 
     const handleDoubleTap = useCallback((postId: string) => {
         handleLikePost(postId);
-    }, [posts]);
+    }, [handleLikePost]);
+
+    const handleOpenComments = (post: any) => {
+        setSelectedPost(post);
+        setShowComments(true);
+    };
+
+    const handleAddComment = async (text: string) => {
+        if (!text.trim() || !selectedPost) return;
+        try {
+            const newComment = {
+                id: Math.random().toString(36).slice(2), // Client-side ID for immediate display
+                uid: pb.authStore.model?.id,
+                username: pb.authStore.model?.username || 'Kullanıcı',
+                avatar: pb.authStore.model?.avatar ? pb.files.getUrl(pb.authStore.model, pb.authStore.model.avatar) : '',
+                text: text.trim(),
+                created: new Date().toISOString()
+            };
+
+            // Optimistic update
+            setPosts(prevPosts => prevPosts.map(p =>
+                p.id === selectedPost.id
+                    ? { ...p, comments: [...(p.comments || []), newComment] }
+                    : p
+            ));
+
+            // Update PocketBase
+            await pb.collection('posts').update(selectedPost.id, {
+                comments: [...(selectedPost.comments || []), newComment]
+            });
+
+            // Optionally refetch data to ensure consistency, or just rely on optimistic update
+            // fetchData();
+            // setShowComments(false); // Close modal after comment
+        } catch (e) {
+            console.error('Comment error:', e);
+            // Revert optimistic update on error
+            setPosts(prevPosts => prevPosts.map(p =>
+                p.id === selectedPost.id
+                    ? { ...p, comments: selectedPost.comments } // Revert to original comments
+                    : p
+            ));
+            alert('Yorum eklenirken bir hata oluştu.');
+        }
+    };
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -550,7 +596,10 @@ export default function HomePage({ onOpenParty, onOpen1v1Match }: { onOpenParty:
                                 >
                                     <i className={`fa-${post.likes?.includes(pb.authStore.model?.id) ? 'solid' : 'regular'} fa-heart`} style={{ fontSize: 16 }}></i> {post.likes?.length || 0}
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: 700, cursor: 'pointer' }}>
+                                <div
+                                    onClick={() => handleOpenComments(post)}
+                                    style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'rgba(255,255,255,0.5)', fontWeight: 700, cursor: 'pointer' }}
+                                >
                                     <i className="fa-regular fa-comment" style={{ fontSize: 16 }}></i> {post.comments?.length || 0}
                                 </div>
                             </div>
@@ -605,6 +654,46 @@ export default function HomePage({ onOpenParty, onOpen1v1Match }: { onOpenParty:
                     </div>
                 )
             }
+
+            {/* --- Comment Modal --- */}
+            {showComments && selectedPost && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 1600, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setShowComments(false)}>
+                    <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 500, background: 'var(--bg-card)', borderRadius: '24px 24px 0 0', padding: 20, maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <h3 style={{ margin: 0, fontSize: 16, color: '#fff' }}>{t('comments')} ({selectedPost.comments?.length || 0})</h3>
+                            <button onClick={() => setShowComments(false)} style={{ background: 'none', border: 'none', color: '#fff' }}><i className="fa-solid fa-xmark"></i></button>
+                        </div>
+
+                        <div style={{ flex: 1, overflowY: 'auto', marginBottom: 20 }} className="no-scrollbar">
+                            {(!selectedPost.comments || selectedPost.comments.length === 0) ? (
+                                <div style={{ textAlign: 'center', padding: '40px 0', color: '#666' }}>{t('no_comments_yet')}</div>
+                            ) : (
+                                selectedPost.comments.map((c: any, idx: number) => (
+                                    <div key={idx} style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+                                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#333', overflow: 'hidden' }}>
+                                            {c.avatar ? <img src={c.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '👤'}
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontWeight: 800, fontSize: 12, color: '#fff' }}>{c.username}</div>
+                                            <div style={{ fontSize: 13, color: '#ccc', marginTop: 2 }}>{c.text}</div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 10 }}>
+                            <input
+                                autoFocus
+                                placeholder={t('type_comment')}
+                                onKeyDown={(e) => { if (e.key === 'Enter') handleAddComment((e.target as any).value); }}
+                                style={{ flex: 1, background: '#1a1d23', border: '1px solid #333', borderRadius: 12, padding: '12px 16px', color: '#fff', outline: 'none' }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <style>{`
                 .hero-cards {
                     padding: 0 20px;

@@ -212,8 +212,14 @@ class FirebaseSocketEmulator {
 
             const unsub = onSnapshot(doc(db, 'rooms', roomId), (docSnap) => {
                 if (docSnap.exists()) {
-                    const roomData = { id: docSnap.id, ...docSnap.data() };
+                    const roomData: any = { id: docSnap.id, ...docSnap.data() };
                     this.emit_local('room_snapshot', roomData);
+
+                    // Eğer odada bir 'lastEvent' (sinyal) varsa yerel olarak yay
+                    if (roomData.lastEvent && roomData.lastEvent.from !== this.uid) {
+                        const event = roomData.lastEvent;
+                        this.emit_local(event.type, { from: event.from, ...event.data });
+                    }
                 }
             });
             this.unsubscribers.set('room', unsub);
@@ -229,9 +235,10 @@ class FirebaseSocketEmulator {
                     id: Math.random().toString(36).slice(2),
                     uid: this.uid,
                     username: pb.authStore.model?.username || 'Kullanıcı',
-                    text: data,
+                    text: typeof data === 'string' ? data : (data?.text || JSON.stringify(data)),
                     timestamp: Date.now()
-                })
+                }),
+                updated: serverTimestamp()
             });
             return;
         }
@@ -372,25 +379,15 @@ class FirebaseSocketEmulator {
         }
 
         if (event === 'peer_mic_on' && this.currentRoomId) {
-            // Odadaki diğer kişilere "mikrofonum açıldı" sinyali göndermek için
-            // Aktif koltuklardaki herkese tek tek sinyal gönder
-            getDoc(doc(db, 'rooms', this.currentRoomId)).then(snap => {
-                if (!snap.exists()) return;
-                const roomData = snap.data();
-                const targetUids = (roomData.seats || [])
-                    .filter((s: any) => s && s.uid && s.uid !== this.uid)
-                    .map((s: any) => s.uid);
-
-                targetUids.forEach((toUid: string) => {
-                    addDoc(collection(db, 'signaling'), {
-                        fromUid: this.uid,
-                        toUid: toUid,
-                        roomId: this.currentRoomId,
-                        signalType: 'peer_mic_on',
-                        timestamp: serverTimestamp()
-                    }).catch(() => { });
-                });
-            });
+            // ODADAKİ HERKESE DUYUR (Firestore üzerinden merkezi sinyal)
+            updateDoc(doc(db, 'rooms', this.currentRoomId), {
+                lastEvent: {
+                    type: 'peer_mic_on',
+                    from: this.id,
+                    timestamp: Date.now(),
+                    data: { socketId: this.id }
+                }
+            }).catch(() => { });
             return;
         }
 
