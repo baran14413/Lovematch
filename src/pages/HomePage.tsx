@@ -46,6 +46,13 @@ const Typewriter = ({ words }: { words: string[] }) => {
     );
 };
 
+const formatDate = (dateStr: string) => {
+    if (!dateStr) return '...';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '...';
+    return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+};
+
 export default function HomePage({ onOpenParty, onOpen1v1Match }: { onOpenParty: () => void, onOpen1v1Match: () => void }) {
     const navigate = useNavigate();
     const [users, setUsers] = useState<any[]>([]);
@@ -517,7 +524,7 @@ export default function HomePage({ onOpenParty, onOpen1v1Match }: { onOpenParty:
                                 <div style={{ flex: 1 }}>
                                     <div style={{ fontWeight: 800, fontSize: 13, color: 'var(--text-primary)' }}>{post.expand?.author?.username || t('anonymous')}</div>
                                     <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2, fontWeight: 600 }}>
-                                        {new Date(post.created).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
+                                        {formatDate(post.created)}
                                     </div>
                                 </div>
                             </div>
@@ -610,7 +617,7 @@ export default function HomePage({ onOpenParty, onOpen1v1Match }: { onOpenParty:
             {/* --- Post Modal --- */}
             {
                 showPostModal && (
-                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1500, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', backdropFilter: 'blur(5px)' }} onClick={() => setShowPostModal(false)}>
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 2500, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', backdropFilter: 'blur(5px)' }} onClick={() => setShowPostModal(false)}>
                         <div onClick={e => e.stopPropagation()} style={{ width: '100%', background: 'var(--bg-deep)', borderRadius: '24px 24px 0 0', padding: 24, animation: 'lm-slide-up 0.3s ease', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                                 <h3 style={{ margin: 0, fontSize: 18, color: 'var(--text-primary)' }}>{t('new_post')}</h3>
@@ -657,7 +664,7 @@ export default function HomePage({ onOpenParty, onOpen1v1Match }: { onOpenParty:
 
             {/* --- Comment Modal --- */}
             {showComments && selectedPost && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 1600, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setShowComments(false)}>
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2600, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setShowComments(false)}>
                     <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 500, background: 'var(--bg-card)', borderRadius: '24px 24px 0 0', padding: 20, maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                             <h3 style={{ margin: 0, fontSize: 16, color: '#fff' }}>{t('comments')} ({selectedPost.comments?.length || 0})</h3>

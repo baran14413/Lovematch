@@ -1,17 +1,23 @@
 import { pb } from '../pb';
-import { tGlobal } from './languages';
 
-// Global types for cordova-plugin-purchase
+// Global types for cordova-plugin-purchase (Cordova/Capacitor)
 declare const CdvPurchase: any;
 
+/**
+ * =========================================================================
+ *  LOVEMATCH - HYBRID STORE SERVICE (V2)
+ *  Supports: Google Play (Cordova) & Mock Mode (Web/Browser)
+ * =========================================================================
+ */
 export const StoreService = {
     store: null as any,
     isInitialized: false,
     status: "Hazır Değil",
     lastLogs: [] as string[],
+    mode: "mock" as "native" | "mock",
 
     log(msg: string) {
-        console.log(`[StoreService] ${msg}`);
+        console.log(`[StoreV2] ${msg}`);
         this.lastLogs.push(`${new Date().toLocaleTimeString()}: ${msg}`);
         if (this.lastLogs.length > 25) this.lastLogs.shift();
     },
@@ -19,66 +25,56 @@ export const StoreService = {
     async init(force = false) {
         if (this.isInitialized && !force) return;
 
+        // Native Check
         if (typeof CdvPurchase === 'undefined') {
-            this.status = tGlobal('store_web_mode');
+            this.mode = "mock";
+            this.status = "Web Test Modu (Mock)";
+            this.log("CdvPurchase bulunamadı. Web Test Moduna geçildi.");
+            this.isInitialized = true;
             return;
         }
 
-        const { store, ProductType, Platform, LogLevel } = CdvPurchase;
-        this.store = store;
+        try {
+            this.mode = "native";
+            const { store, ProductType, Platform, LogLevel } = CdvPurchase;
+            this.store = store;
 
-        // En detaylı log seviyesi
-        store.verbosity = LogLevel.DEBUG;
+            store.verbosity = LogLevel.DEBUG;
+            this.log("Native Store Bağlanıyor...");
 
-        this.log("İlklendirme... Paket: com.lovmatch.app");
-        this.status = "Bağlanıyor...";
+            // Ürün Tanımlama
+            store.register([
+                {
+                    id: 'vip_01',
+                    type: ProductType.PAID_SUBSCRIPTION,
+                    platform: Platform.GOOGLE_PLAY,
+                }
+            ]);
 
-        // Google Play'de 'vip_01' ID'si tek bir tip olabilir. 
-        // Eğer her iki tipi de register edersek çakışma olabilir.
-        // Bu yüzden ikisini de tanımlıyoruz ama Google hangisini dönerse onu kullanacağız.
-        store.register([
-            {
-                id: 'vip_01',
-                type: ProductType.PAID_SUBSCRIPTION,
-                platform: Platform.GOOGLE_PLAY,
-            }
-        ]);
+            // İşlem Yönetimi
+            store.when()
+                .approved((transaction: any) => {
+                    this.log(`Onay Geldi: ${transaction.productId}`);
+                    this.verifyAndDeliver(transaction);
+                })
+                .finished((transaction: any) => {
+                    this.log(`İşlem Kapandı: ${transaction.productId}`);
+                })
+                .owned((p: any) => {
+                    this.log(`Sahiplik Algılandı: ${p.id}`);
+                });
 
-        store.when()
-            .approved((transaction: any) => {
-                this.log(`Onay Geldi: ${transaction.productId}`);
-                this.verifyAndDeliver(transaction);
-            })
-            .finished((transaction: any) => {
-                this.log(`İşlem Kapandı: ${transaction.productId}`);
-            })
-            .owned((p: any) => {
-                this.log(`Sahiplik Algılandı: ${p.id}`);
-                this.verifyAndDeliver(p.transaction);
-            })
-            .updated((p: any) => {
-                this.log(`Ürün Güncellendi: ${p.id} -> ${p.state}`);
-            })
-            .invalid((p: any) => {
-                this.log(`GEÇERSİZ ÜRÜN: ${p.id}. Play Console ayarlarını kontrol edin.`);
+            store.error((error: any) => {
+                this.log(`MAĞAZA HATASI: ${error.message} (${error.code})`);
+                this.status = "Hata: " + error.code;
             });
 
-        store.error((error: any) => {
-            this.log(`KRİTİK HATA: ${error.message} (${error.code})`);
-            if (error.code === CdvPurchase.ErrorCode.SETUP) {
-                this.status = "Google Play Bağlantı Hatası";
-            }
-        });
-
-        try {
             await store.initialize([Platform.GOOGLE_PLAY]);
             this.isInitialized = true;
-            this.status = "Bağlandı (Google Play)";
-            this.log("Store Initialize edildi.");
+            this.status = "Aktif (Google Play)";
+            this.log("Store Hazır.");
 
-            // Ürünleri Google'dan çekmek için zorla güncelle
             await store.update();
-            this.log(`Marketten çekilen ürün sayısı: ${store.products.length}`);
         } catch (e: any) {
             this.status = "Başlatma Hatası";
             this.log(`Hata: ${e.message}`);
@@ -86,87 +82,88 @@ export const StoreService = {
     },
 
     async getProduct(productId: string) {
-        if (!this.store) return null;
-        return this.store.get(productId);
+        if (!this.isInitialized) await this.init();
+        if (this.mode === 'mock') {
+            return { id: productId, price: '29,99 ₺', title: 'Aylık VIP (Test)', description: 'Web test amaçlı simülasyon ürünüdür.' };
+        }
+        return this.store?.get(productId);
+    },
+
+    async purchase(productId: string): Promise<boolean> {
+        this.log(`Satın alım başlatıldı: ${productId}`);
+
+        if (this.mode === 'mock') {
+            this.log("MOCK PURCHASE: 2 saniye sonra başarılı sayılacak...");
+            await new Promise(r => setTimeout(r, 2000));
+            await this.deliverMockVIP();
+            return true;
+        }
+
+        if (!this.store) return false;
+
+        try {
+            const product = this.store.get(productId);
+            if (!product) {
+                this.log(`Hata: Ürün (${productId}) markette bulunamadı.`);
+                return false;
+            }
+
+            // Ödemeyi Başlat
+            this.log(`Ödeme arayüzü açılıyor: ${productId}`);
+            const offer = product.getOffer();
+            if (offer) {
+                await offer.order();
+                return true;
+            }
+
+            await product.order();
+            return true;
+        } catch (e: any) {
+            this.log(`Ödeme Hatası: ${e.message}`);
+            return false;
+        }
     },
 
     async verifyAndDeliver(transaction: any) {
+        this.log(`Doğrulama Yapılıyor: ${transaction.productId}`);
         try {
-            const userId = pb.authStore.model?.id;
-            if (!userId) {
-                this.log("Hata: Kullanıcı oturumu bulunamadı.");
-                return;
-            }
+            const user = pb.authStore.model;
+            if (!user) return;
 
-            const rawId = transaction?.productId || (transaction?.products && transaction.products[0]?.id) || 'vip_01';
+            // VIP Süresi: 30 gün
+            const until = new Date();
+            until.setDate(until.getDate() + 30);
 
-            if (rawId.includes('vip_01')) {
-                const user = await pb.collection('users').getOne(userId);
+            await pb.collection('users').update(user.id, {
+                isVIP: true,
+                vipUntil: until.toISOString(),
+                premiumType: 'gold_vip'
+            });
 
-                await pb.collection('users').update(userId, {
-                    'isVIP': true,
-                    'vipUntil': new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-                    'premiumBadge': true,
-                    'bubbleStyle': user.bubbleStyle || 'gold'
-                });
-
-                this.log("VIP ve Rozet başarıyla tanımlandı!");
-                if (transaction && transaction.finish) transaction.finish();
-            }
-        } catch (e: any) {
-            this.log(`Teslimat Hatası: ${e.message}`);
+            transaction.finish();
+            this.log("VIP Başarıyla Tanımlandı! ✨");
+            window.location.reload(); // Değişikliklerin yansıması için
+        } catch (e) {
+            this.log("Kayıt Hatası: Veritabanına ulaşılamadı.");
         }
     },
 
-    async purchase(productId: string) {
-        if (!this.store) {
-            if (confirm(`Web Test: Buy ${productId}?`)) {
-                const userId = pb.authStore.model?.id;
-                if (userId) {
-                    await pb.collection('users').update(userId, {
-                        'isVIP': true,
-                        'vipUntil': new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-                        'premiumBadge': true
-                    });
-                    return true;
-                }
-            }
-            return false;
-        }
+    async deliverMockVIP() {
+        const user = pb.authStore.model;
+        if (!user) return;
+        const until = new Date();
+        until.setDate(until.getDate() + 30);
 
-        this.log(`Satın alma isteği: ${productId}`);
-
-        // Satın almadan önce listeyi bir kez daha yenile
-        await this.store.update();
-
-        // State'i 'invalid' olmayan ürünü bul
-        const product = this.store.products.find((p: any) => p.id === productId && p.state !== 'invalid');
-
-        if (!product) {
-            const allItems = this.store.products.map((p: any) => `${p.id}(${p.state})`).join(', ') || 'Mağaza Tamamen Boş';
-
-            let advice = "Sorun Kaynağı Analizi:\n";
-            if (allItems === 'Mağaza Tamamen Boş') {
-                advice += "1- Bu APK Google Play tarafından tanınmıyor (İmza Hatası).\n2- Cihazda bir Google hesabı açık değil.\n3- Paket adı (com.lovmatch.app) Console ile uyuşmuyor.";
-            } else {
-                advice += `ID '${productId}' Play Console'da 'Etkin' değil veya 'Uygulama İçi Ürünler' kısmında tanımlanmamış.`;
-            }
-
-            alert(`${tGlobal('error')}: ${tGlobal('product_not_found')}!\n\n${advice}\n\n${tGlobal('system_logs')}:\n${this.lastLogs.join('\n')}`);
-            return false;
-        }
-
-        if (product.canPurchase) {
-            this.log(`Ödeme Başlatılıyor: ${product.id}`);
-            product.getOffer().order();
-            return true;
-        } else if (product.owned) {
-            alert(tGlobal('product_already_owned'));
-            this.verifyAndDeliver(product.transaction);
-            return true;
-        } else {
-            alert(`${tGlobal('cannot_purchase_status')} ${product.state}. ${tGlobal('check_logs')}`);
-            return false;
+        try {
+            await pb.collection('users').update(user.id, {
+                isVIP: true,
+                vipUntil: until.toISOString(),
+                premiumType: 'test_vip'
+            });
+            this.log("MOCK VIP Tanımlandı! (30 Gün)");
+            setTimeout(() => window.location.reload(), 500);
+        } catch (e) {
+            this.log("Mock Teslimat Hatası");
         }
     }
 };

@@ -733,10 +733,12 @@ export function PartyRoomInner({ roomId, onLeave, onBack: _onBack }: { roomId: s
     const [showMentionSuggester, setShowMentionSuggester] = useState(false);
     const [isMediaGroupExpanded, setIsMediaGroupExpanded] = useState(false);
 
-    const isAdmin = roomState?.admins?.includes(pb.authStore.model?.id);
+    const isAdmin = roomState?.admins?.includes(pb.authStore.model?.id) || roomState?.ownerUid === pb.authStore.model?.id;
     const boostLevel = roomState?.boostLevel || 1;
     const followerCount = roomState?.followerCount || 0;
-    const nextBoostAt = roomState?.nextBoostAt || null;
+
+    // Boost hedeflerini dinamik belirle (Oda bilgisinde yoksa varsayılan ata)
+    const nextBoostAt = roomState?.nextBoostAt || (boostLevel === 1 ? 20 : boostLevel === 2 ? 100 : null);
 
     // Bir sonraki boost için ilerleme yüzdesini hesapla
     const boostProgress = nextBoostAt
@@ -749,7 +751,7 @@ export function PartyRoomInner({ roomId, onLeave, onBack: _onBack }: { roomId: s
         2: { label: 'Gelişmiş', color: '#60a5fa', bg: 'rgba(59,130,246,0.15)', icon: '🔥' },
         3: { label: 'Premium', color: '#fcd34d', bg: 'rgba(245,158,11,0.15)', icon: '💥' },
     };
-    const bm = BOOST_META[boostLevel];
+    const bm = BOOST_META[boostLevel] || BOOST_META[1];
 
     const chatEndRef = useRef<HTMLDivElement>(null);
     const [showBilgiPaneli, setShowBilgiPaneli] = useState(false);
@@ -1504,7 +1506,7 @@ export function PartyRoomInner({ roomId, onLeave, onBack: _onBack }: { roomId: s
                         isAdmin={isAdmin}
                         roomState={roomState}
                         localStream={localStream}
-                        remoteStream={remoteStreams.get(roomState.seats[i]?.socketId)}
+                        remoteStream={remoteStreams.get(roomState.seats[i]?.uid || roomState.seats[i]?.socketId)}
                         onClick={(stream: any) => {
                             if (roomState.lockedSeats[i] && !isAdmin && !roomState.seats[i]) {
                                 showToast(t('seat_locked_msg'));
@@ -1607,14 +1609,14 @@ export function PartyRoomInner({ roomId, onLeave, onBack: _onBack }: { roomId: s
                     return (
                         <div
                             key={m.id}
-                            className={`bubble-v9 ${m.type} bubble-${m.user?.bubbleStyle || 'classic'}`}
+                            className={`bubble-v9 ${m.type || 'chat'} bubble-${m.user?.bubbleStyle || 'classic'}`}
                             onClick={() => {
                                 if (isSysChat || !m.user) return;
                                 setActionPanel({ type: 'user', data: m.user });
                             }}
                             style={{ cursor: (isSysChat || !m.user) ? 'default' : 'pointer' }}
                         >
-                            {m.type === 'chat' || isSysChat ? (
+                            {(m.type === 'chat' || !m.type || isSysChat) ? (
                                 <div className="msg-inner" style={isSysChat ? { opacity: 0.7 } : {}}>
                                     {isSysChat ? (
                                         <div className="chat-avatar" style={{ background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}>
@@ -1715,7 +1717,7 @@ export function PartyRoomInner({ roomId, onLeave, onBack: _onBack }: { roomId: s
                                         </button>
                                         {isAdmin && (
                                             <>
-                                                <button onClick={() => handleAction('mute')} className="action-btn warning">
+                                                <button onClick={() => handleAction(roomState.mutedUsers?.includes(actionPanel.data.uid) ? 'unmute' : 'mute')} className="action-btn warning">
                                                     <i className="fa-solid fa-microphone-slash"></i>
                                                     <span>{roomState.mutedUsers?.includes(actionPanel.data.uid) ? 'Sesi Aç' : 'Sustur'}</span>
                                                 </button>
@@ -1746,7 +1748,7 @@ export function PartyRoomInner({ roomId, onLeave, onBack: _onBack }: { roomId: s
                                         )}
                                     </div>
                                 ) : (
-                                    <button onClick={() => handleAction('lock_seat')} className="action-btn">
+                                    <button onClick={() => handleAction(roomState.lockedSeats[actionPanel.data] ? 'unlock_seat' : 'lock_seat')} className="action-btn">
                                         <i className={`fa-solid ${roomState.lockedSeats[actionPanel.data] ? 'fa-lock-open' : 'fa-lock'}`}></i>
                                         <span>{roomState.lockedSeats[actionPanel.data] ? 'Kilidi Aç' : 'Koltuk Kilitle'}</span>
                                     </button>

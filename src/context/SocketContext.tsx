@@ -338,6 +338,9 @@ class FirebaseSocketEmulator {
                     updates.mutedUsers = arrayUnion(targetUid);
                 } else if (action === 'unmute' && targetUid) {
                     updates.mutedUsers = arrayRemove(targetUid);
+                } else if (action === 'toggle_mod' && targetUid) {
+                    const isAdminNow = roomData.admins?.includes(targetUid);
+                    updates.admins = isAdminNow ? (arrayRemove(targetUid)) : (arrayUnion(targetUid));
                 } else if (action === 'change_layout' && typeof data.seats === 'number') {
                     // Koltuk sayısını değiştir
                     const newSeatCount = data.seats;
