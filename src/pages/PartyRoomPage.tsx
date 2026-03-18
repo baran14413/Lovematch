@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { pb } from '../pb';
 import { useSocket } from '../context/SocketContext';
 import { useLanguage } from '../context/LanguageContext';
+import { db } from '../firebase'; // Firestore db instance
+import { collection, query, getDocs, orderBy, where } from 'firebase/firestore';
 import { usePartyRoom } from '../hooks/usePartyRoom';
 import { BilgiPaneli } from '../components/BilgiPaneli';
 import { SocialService } from '../utils/social';
@@ -213,34 +215,29 @@ export function PartyRoomPage({ onRoomJoin }: { onRoomJoin?: (id: string, name: 
     // Odaları Firebase'den çekme fonksiyonu
     const fetchRooms = async () => {
         try {
-            // Firebase üzerinden odaları çek (VDS bağımlılığı kalktı)
-            const data = await pb.collection('rooms').getFullList({
-                sort: '-viewerCount',
-                expand: 'ownerUid'
+            const querySnapshot = await getDocs(query(collection(db, 'rooms'), orderBy('viewerCount', 'desc')));
+            const formattedRooms = querySnapshot.docs.map(doc => {
+                const r = doc.data();
+                return {
+                    id: doc.id,
+                    name: r.name || 'İsimsiz Oda',
+                    ownerUid: r.ownerUid,
+                    ownerName: r.ownerName || 'Kullanıcı',
+                    ownerAvatar: r.ownerAvatar || '',
+                    viewerCount: r.viewerCount || 0,
+                    seatedCount: r.seatedCount || 0,
+                    maxSeatCount: r.maxSeatCount || 8,
+                    boostLevel: r.boostLevel || 1,
+                    followerCount: r.followerCount || 0,
+                    isSleeping: r.isSleeping || false
+                };
             });
 
-            // Veriyi UI formatına dönüştür
-            const formattedRooms = data.map((r: any) => ({
-                id: r.id,
-                name: r.name || 'İsimsiz Oda',
-                ownerUid: r.ownerUid || r.owner,
-                ownerName: r.ownerName || r.expand?.ownerUid?.username || 'Kullanıcı',
-                ownerAvatar: r.ownerAvatar || r.expand?.ownerUid?.avatar || '',
-                viewerCount: r.viewerCount || 0,
-                seatedCount: r.seatedCount || 0,
-                maxSeatCount: r.maxSeatCount || 8,
-                boostLevel: r.boostLevel || 1,
-                followerCount: r.followerCount || 0,
-                isSleeping: r.isSleeping || false
-            }));
-
             setRooms(formattedRooms);
-
-            // Kullanıcının odası var mı kontrol et
             const myRoom = formattedRooms.find((r: any) => r.ownerUid === pb.authStore.model?.id);
             setUserHasRoom(!!myRoom);
         } catch (err) {
-            console.error("Lobi Hatası (Firebase):", err);
+            console.error("Lobi Hatası (Firestore):", err);
         } finally {
             setLoading(false);
         }
@@ -248,17 +245,22 @@ export function PartyRoomPage({ onRoomJoin }: { onRoomJoin?: (id: string, name: 
 
     useEffect(() => {
         fetchRooms();
+        const interval = setInterval(fetchRooms, 15000); // Every 15s
+
         if (socket) {
             socket.on('room_list_update', fetchRooms);
-            // Takip durumu güncellemeleri
             socket.on('follow_room_ok', ({ roomId, followerCount }: any) => {
                 setRooms(prev => prev.map(r => r.id === roomId ? { ...r, followerCount } : r));
             });
-            return () => {
+        }
+
+        return () => {
+            clearInterval(interval);
+            if (socket) {
                 socket.off('room_list_update', fetchRooms);
                 socket.off('follow_room_ok');
-            };
-        }
+            }
+        };
     }, [socket]);
 
     // Takıp edilen odaları socket üzerinden kontrol et
@@ -277,11 +279,10 @@ export function PartyRoomPage({ onRoomJoin }: { onRoomJoin?: (id: string, name: 
     }, [socket, rooms.length]);
 
     const toggleFollow = (e: React.MouseEvent, roomId: string) => {
-        e.stopPropagation(); // Kart tıklamasını engelle
+        e.stopPropagation();
         if (!socket) return;
         const isFollowing = followedRooms.has(roomId);
         socket.emit(isFollowing ? 'unfollow_room' : 'follow_room', { targetRoomId: roomId });
-        // Anında UI güncellemesi (optimistic)
         setFollowedRooms(prev => {
             const next = new Set(prev);
             if (isFollowing) next.delete(roomId); else next.add(roomId);
@@ -293,15 +294,13 @@ export function PartyRoomPage({ onRoomJoin }: { onRoomJoin?: (id: string, name: 
         if (!socket || authStatus !== 'authenticated') return alert('Bağlantı bekleniyor...');
         if (!newRoomName.trim()) return;
 
-        // Socket emülatörü üzerinden oda oluştur
         socket.emit('create_room', { name: newRoomName, seatCount });
 
-        // Oda oluşturulunca listeyi yenile ve odaya gir
         socket.once('room_created', (id: string) => {
             setShowCreateModal(false);
             setNewRoomName('');
             setSeatCount(8);
-            fetchRooms(); // Listeyi anında yenile
+            fetchRooms();
             if (onRoomJoin) onRoomJoin(id, newRoomName, '🎭');
         });
     };

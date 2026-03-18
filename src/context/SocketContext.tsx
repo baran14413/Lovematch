@@ -243,6 +243,19 @@ class FirebaseSocketEmulator {
             return;
         }
 
+        if (event === 'leave_room') {
+            const rid = data || this.currentRoomId;
+            if (rid) {
+                updateDoc(doc(db, 'rooms', rid), { viewerCount: increment(-1) }).catch(() => { });
+                if (rid === this.currentRoomId) this.currentRoomId = null;
+            }
+            if (this.unsubscribers.has('room')) {
+                this.unsubscribers.get('room')!();
+                this.unsubscribers.delete('room');
+            }
+            return;
+        }
+
         if (event === 'send_msg' && this.currentRoomId) {
             updateDoc(doc(db, 'rooms', this.currentRoomId), {
                 messages: arrayUnion({
