@@ -75,9 +75,74 @@ export const StoreService = {
             this.log("Store Hazır.");
 
             await store.update();
+
+            // Mevcut satın alımları kontrol et (uygulama açılışında)
+            await this.checkExistingPurchases();
         } catch (e: any) {
             this.status = "Başlatma Hatası";
             this.log(`Hata: ${e.message}`);
+        }
+    },
+
+    // Mevcut satın alımları kontrol et (uygulama açılışında VIP durumunu doğrula)
+    async checkExistingPurchases() {
+        if (this.mode === 'mock') return;
+        if (!this.store) return;
+
+        try {
+            const product = this.store.get('vip_01');
+            if (product && product.owned) {
+                this.log('✅ Mevcut VIP aboneliği tespit edildi!');
+                const user = pb.authStore.model;
+                if (user && !user.isVIP) {
+                    // VIP değilse ama satın alma varsa, VIP yap
+                    const until = new Date();
+                    until.setDate(until.getDate() + 30);
+                    await pb.collection('users').update(user.id, {
+                        isVIP: true,
+                        vipUntil: until.toISOString(),
+                        premiumType: 'gold_vip'
+                    });
+                    this.log('VIP durumu Play Store\'dan senkronize edildi!');
+                }
+            } else {
+                // Ürün sahiplenilmemiş — VIP süresi dolmuşsa kaldır
+                const user = pb.authStore.model;
+                if (user?.isVIP && user?.vipUntil) {
+                    const vipEnd = new Date(user.vipUntil);
+                    if (vipEnd < new Date()) {
+                        this.log('⚠️ VIP süresi dolmuş, kaldırılıyor...');
+                        await pb.collection('users').update(user.id, {
+                            isVIP: false,
+                            premiumType: ''
+                        });
+                    }
+                }
+            }
+        } catch (e: any) {
+            this.log(`Mevcut satın alma kontrol hatası: ${e.message}`);
+        }
+    },
+
+    // Bekleyen satın almaları geri yükle
+    async restorePurchases(): Promise<boolean> {
+        if (this.mode === 'mock') {
+            this.log('Mock modda restore işlemi simule edildi.');
+            return true;
+        }
+        if (!this.store) {
+            this.log('Store hazır değil, restore yapılamıyor.');
+            return false;
+        }
+        try {
+            this.log('Satın almalar geri yükleniyor...');
+            await this.store.update();
+            await this.checkExistingPurchases();
+            this.log('Geri yükleme tamamlandı!');
+            return true;
+        } catch (e: any) {
+            this.log(`Geri yükleme hatası: ${e.message}`);
+            return false;
         }
     },
 

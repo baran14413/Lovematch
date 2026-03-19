@@ -61,6 +61,9 @@ class FirebaseSocketEmulator {
     private unsubscribers: Map<string, () => void> = new Map();
     public id: string; // socket.id emülasyonu (uid kullanıyoruz)
     private currentRoomId: string | null = null;
+    private heartbeatInterval: any = null; // Heartbeat zamanlayıcısı
+    private readonly HEARTBEAT_MS = 25000; // 25 saniyede bir heartbeat
+    private readonly STALE_TIMEOUT_MS = 60000; // 60 saniye ses çıkmazsa stale say
 
     constructor(private uid: string) {
         this.id = uid; // uid'yi socket id olarak kullanıyoruz (stabilite için)
@@ -68,6 +71,8 @@ class FirebaseSocketEmulator {
         this.listenForDMs();
         this.listenForSystemNotifications();
         this.listenForWebRTCSignals();
+        this.startHeartbeat(); // Kullanıcının online olduğunu sürekli bildir
+        this.setupDisconnectHandlers(); // Uygulama kapanınca cleanup
     }
 
     private async fetchFilters() {
@@ -246,7 +251,22 @@ class FirebaseSocketEmulator {
         if (event === 'leave_room') {
             const rid = data || this.currentRoomId;
             if (rid) {
-                updateDoc(doc(db, 'rooms', rid), { viewerCount: increment(-1) }).catch(() => { });
+                // Koltuktan da kaldır + viewerCount düşür
+                getDoc(doc(db, 'rooms', rid)).then(snap => {
+                    if (snap.exists()) {
+                        const roomData = snap.data();
+                        const seats = (roomData.seats || []).map((s: any) => s?.uid === this.uid ? null : s);
+                        const activeCount = seats.filter((s: any) => s !== null).length;
+                        updateDoc(snap.ref, {
+                            seats,
+                            seatedCount: activeCount,
+                            viewerCount: increment(-1)
+                        });
+                    }
+                }).catch(() => {
+                    // Fallback
+                    updateDoc(doc(db, 'rooms', rid), { viewerCount: increment(-1) }).catch(() => { });
+                });
                 if (rid === this.currentRoomId) this.currentRoomId = null;
             }
             if (this.unsubscribers.has('room')) {
@@ -494,15 +514,168 @@ class FirebaseSocketEmulator {
     private async handleAuth(data: any) {
         if (!data?.uid) return;
         const userRef = doc(db, 'users', data.uid);
-        updateDoc(userRef, { online: true, lastSeen: serverTimestamp(), color: data.color || '#8b5cf6' }).catch(() => { });
+        updateDoc(userRef, {
+            online: true,
+            lastSeen: serverTimestamp(),
+            lastHeartbeat: Date.now(), // Heartbeat başlangıcı
+            color: data.color || '#8b5cf6'
+        }).catch(() => { });
         setTimeout(() => this.emit_local('auth_ok', { username: data.username, uid: data.uid }), 100);
     }
 
-    disconnect() {
+    // ─── HEARTBEAT SİSTEMİ ───
+    // 25 saniyede bir Firestore'a "ben hala buradayım" yazar
+    // Böylece uygulama arka plandan kapatılırsa heartbeat durur
+    // ve stale cleanup fonksiyonu bu kullanıcıyı offline yapar
+    private startHeartbeat() {
+        if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
+        this.heartbeatInterval = setInterval(async () => {
+            try {
+                if (this.uid) {
+                    await updateDoc(doc(db, 'users', this.uid), {
+                        lastHeartbeat: Date.now(),
+                        online: true
+                    });
+                }
+                // Odadaysa oda heartbeat'ini de güncelle
+                if (this.currentRoomId) {
+                    await this.updateRoomPresence();
+                }
+            } catch { }
+        }, this.HEARTBEAT_MS);
+    }
+
+    // Odadaki varlığımızı güncelle (stale user temizliği için)
+    private async updateRoomPresence() {
+        if (!this.currentRoomId) return;
+        try {
+            const roomSnap = await getDoc(doc(db, 'rooms', this.currentRoomId));
+            if (!roomSnap.exists()) return;
+            const roomData = roomSnap.data();
+
+            // ─── STALE CLEANUP: Koltukta oturan ama heartbeat'i durmuş (60sn) kullanıcıları temizle ───
+            let seatsChanged = false;
+            const now = Date.now();
+            const seats = [...(roomData.seats || [])];
+
+            for (let i = 0; i < seats.length; i++) {
+                const seat = seats[i];
+                if (seat && seat.uid && seat.uid !== this.uid) {
+                    // Bu kullanıcının heartbeat'ini kontrol et
+                    try {
+                        const userSnap = await getDoc(doc(db, 'users', seat.uid));
+                        if (userSnap.exists()) {
+                            const userData = userSnap.data();
+                            const lastHb = userData.lastHeartbeat || 0;
+                            if (now - lastHb > this.STALE_TIMEOUT_MS) {
+                                // Kullanıcı stale — koltuktan kaldır
+                                console.log(`[Heartbeat] 🧹 Stale kullanıcı koltuktan kaldırıldı: ${seat.username} (${seat.uid.slice(-4)})`);
+                                seats[i] = null;
+                                seatsChanged = true;
+                                // Kullanıcıyı offline yap
+                                updateDoc(doc(db, 'users', seat.uid), { online: false, lastSeen: serverTimestamp() }).catch(() => { });
+                            }
+                        }
+                    } catch { }
+                }
+            }
+
+            if (seatsChanged) {
+                const activeCount = seats.filter(s => s !== null).length;
+                await updateDoc(doc(db, 'rooms', this.currentRoomId), {
+                    seats,
+                    seatedCount: activeCount,
+                    // ViewerCount'ı da düzelt (en azından oturanlar kadar olmalı)
+                    viewerCount: Math.max(activeCount, roomData.viewerCount || 0)
+                });
+            }
+        } catch (e) {
+            console.warn('[Heartbeat] Room presence update failed:', e);
+        }
+    }
+
+    // ─── DİSCONNECT HANDLER'LARI ───
+    // Tarayıcı/uygulama kapanınca veya sayfa değişince cleanup yap
+    private setupDisconnectHandlers() {
+        // Sayfa kapanırken / yenilenirken
+        const cleanup = () => this.disconnect();
+        window.addEventListener('beforeunload', cleanup);
+        // Capacitor/Cordova: Uygulama arka plana alınırken
+        document.addEventListener('pause', cleanup);
+        // Sayfa görünürlüğü değişince
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                // Arka plana geçti — sadece heartbeat'i güçlendir (daha sık yaz)
+                // Tam disconnect yapmayız çünkü kullanıcı geri dönebilir
+                this.updateLastSeen();
+            } else if (document.visibilityState === 'visible') {
+                // Ön plana döndü — online durumunu tazele
+                if (this.uid) {
+                    updateDoc(doc(db, 'users', this.uid), {
+                        online: true,
+                        lastHeartbeat: Date.now()
+                    }).catch(() => { });
+                }
+            }
+        });
+        // Unsubscribe için sakla
+        this.unsubscribers.set('__beforeunload', () => {
+            window.removeEventListener('beforeunload', cleanup);
+            document.removeEventListener('pause', cleanup);
+        });
+    }
+
+    // Son görülme zamanını güncelle
+    private updateLastSeen() {
+        if (this.uid) {
+            updateDoc(doc(db, 'users', this.uid), { lastSeen: serverTimestamp(), lastHeartbeat: Date.now() }).catch(() => { });
+        }
+    }
+
+    // ─── GELİŞTİRİLMİŞ DİSCONNECT ───
+    // Kullanıcıyı offline yap, koltuktan kaldır, viewerCount düşür
+    async disconnect() {
+        // Heartbeat'i durdur
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = null;
+        }
+
+        // Tüm listener'ları kaldır
         this.unsubscribers.forEach(unsub => unsub());
         this.unsubscribers.clear();
-        if (this.uid) updateDoc(doc(db, 'users', this.uid), { online: false, lastSeen: serverTimestamp() }).catch(() => { });
-        if (this.currentRoomId) updateDoc(doc(db, 'rooms', this.currentRoomId), { viewerCount: increment(-1) }).catch(() => { });
+
+        // Kullanıcıyı offline yap
+        if (this.uid) {
+            updateDoc(doc(db, 'users', this.uid), {
+                online: false,
+                lastSeen: serverTimestamp(),
+                lastHeartbeat: 0 // Heartbeat durduğunu belirt
+            }).catch(() => { });
+        }
+
+        // Odadaysa: koltuktan kaldır + viewerCount düşür
+        if (this.currentRoomId) {
+            try {
+                const roomSnap = await getDoc(doc(db, 'rooms', this.currentRoomId));
+                if (roomSnap.exists()) {
+                    const roomData = roomSnap.data();
+                    // Koltuktan kaldır
+                    const seats = (roomData.seats || []).map((s: any) => s?.uid === this.uid ? null : s);
+                    const activeCount = seats.filter((s: any) => s !== null).length;
+                    await updateDoc(doc(db, 'rooms', this.currentRoomId), {
+                        seats,
+                        seatedCount: activeCount,
+                        viewerCount: increment(-1)
+                    });
+                    console.log(`[Socket] 🚪 Odadan çıkıldı: ${this.currentRoomId}, koltuk temizlendi`);
+                }
+            } catch (e) {
+                // Fallback: sadece viewerCount düşür
+                updateDoc(doc(db, 'rooms', this.currentRoomId), { viewerCount: increment(-1) }).catch(() => { });
+            }
+            this.currentRoomId = null;
+        }
     }
 }
 

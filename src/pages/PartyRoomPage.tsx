@@ -781,8 +781,8 @@ export function PartyRoomInner({ roomId, onLeave, onBack: _onBack }: { roomId: s
     const { t, language } = useLanguage();
     const navigate = useNavigate();
     const { socket: _socket, isConnected: socketConnected, connect, authStatus } = useSocket();
-    // usePartyRoom kancası ile oda mantığını yönetiyoruz
-    const { roomState, chat, isMicOn, isCameraOn, isLoading, isConnected, localStream, remoteStreams, actions } = usePartyRoom(roomId);
+    // usePartyRoom kancası ile oda mantığını yönetiyoruz — roomUsers artık buradan geliyor
+    const { roomState, chat, isMicOn, isCameraOn, isLoading, isConnected, localStream, remoteStreams, roomUsers, actions } = usePartyRoom(roomId);
 
     // Oda içi yerel durum (state) yönetimi
     const [isAnnouncementExpanded, setIsAnnouncementExpanded] = useState(false);
@@ -793,7 +793,6 @@ export function PartyRoomInner({ roomId, onLeave, onBack: _onBack }: { roomId: s
     const [lastMsgTime, setLastMsgTime] = useState(0);
     const [fullScreenStream, setFullScreenStream] = useState<MediaStream | null>(null);
     const [isSeatCollapsed, setIsSeatCollapsed] = useState(false);
-    const [roomUsers, setRoomUsers] = useState<any[]>([]);
     const [followers, setFollowers] = useState<any[]>([]);
     const [loadingFollowers, setLoadingFollowers] = useState(false);
     const [isInitialScroll, setIsInitialScroll] = useState(true);
@@ -919,14 +918,12 @@ export function PartyRoomInner({ roomId, onLeave, onBack: _onBack }: { roomId: s
 
     useEffect(() => {
         if (!_socket) return;
-        _socket.on('room_users_list', setRoomUsers);
+        // Engellenen kullanıcı listesini dinle
         _socket.on('blocked_users_list', setBlockedUsers);
 
         // Arka plan güncellenince odadakilere yansıt
         const onBgUpdated = (data: any) => {
             if (data.url) {
-                // roomState'deki backgroundUrl'yi güncelle
-                setRoomUsers(prev => prev); // force re-render trigger
                 // Oda arka planını güncelle - roomState parent state'te var
                 (window as any).__roomBgUrl = data.url;
                 // CSS ile arka planı uygula
@@ -944,21 +941,13 @@ export function PartyRoomInner({ roomId, onLeave, onBack: _onBack }: { roomId: s
         _socket.on('bg_upload_ok', onBgOk);
 
         return () => {
-            _socket.off('room_users_list', setRoomUsers);
             _socket.off('blocked_users_list', setBlockedUsers);
             _socket.off('room_background_updated', onBgUpdated);
             _socket.off('bg_upload_ok', onBgOk);
         };
     }, [_socket]);
 
-    useEffect(() => {
-        if (showRoomUsers && _socket && roomId) {
-            _socket.emit('get_room_users', { roomId });
-            // Refresh per 5 seconds while open
-            const intv = setInterval(() => _socket.emit('get_room_users', { roomId }), 5000);
-            return () => clearInterval(intv);
-        }
-    }, [showRoomUsers, _socket, roomId]);
+    // NOT: roomUsers artık usePartyRoom hook'undan geliyor — get_room_users socket çağrısına gerek yok
 
     // Engellenen kullanıcıları getir
     useEffect(() => {

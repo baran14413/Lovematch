@@ -61,6 +61,8 @@ export function usePartyRoom(roomId: string) {
     const [isCameraOn, setIsCameraOn] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    // Odadaki kullanıcı listesi (koltuktakiler + izleyiciler)
+    const [roomUsers, setRoomUsers] = useState<any[]>([]);
     // React state olarak remoteStreams → component re-render için
     const [remoteStreamsState, setRemoteStreamsState] = useState<Map<string, MediaStream>>(new Map());
 
@@ -99,7 +101,7 @@ export function usePartyRoom(roomId: string) {
         }
     }, []);
 
-    // Peer bağlantısı oluştur
+    // Peer bağlantısı oluştur - stream opsiyonel (dinleyici modu için)
     const createPeer = useCallback((targetSocketId: string, stream?: MediaStream) => {
         // Eğer zaten bağlı bir PC varsa, sadece yeni track'leri ekle ve devam et
         const existing = peers.current.get(targetSocketId);
@@ -153,9 +155,9 @@ export function usePartyRoom(roomId: string) {
             }
         };
 
-        // Uzak taraftan track geldiğinde
+        // Uzak taraftan track geldiğinde — DİNLEYİCİ VEYA KOLTUKTA OLANDAN SES AL
         pc.ontrack = (event) => {
-            console.log('[WebRTC] Track:', event.track.kind, 'from:', targetSocketId.slice(-4));
+            console.log('[WebRTC] 🎵 Track geldi:', event.track.kind, 'kaynak:', targetSocketId.slice(-4));
 
             let rStream = remoteStreamsRef.current.get(targetSocketId);
             if (!rStream) {
@@ -170,21 +172,29 @@ export function usePartyRoom(roomId: string) {
             // State güncelle (React re-render için)
             updateRemoteStream(targetSocketId, rStream);
 
-            // Ses track'i için Audio eleman oynat
+            // Ses track'i için Audio eleman oynat — KRİTİK: Bu, dinleyicinin ses duymasını sağlar
             if (event.track.kind === 'audio') {
-                const audioEl = document.createElement('audio');
-                audioEl.id = `audio-${targetSocketId}`;
                 // Eski audio elementini kaldır
                 document.getElementById(`audio-${targetSocketId}`)?.remove();
-                audioEl.srcObject = rStream;
+                const audioEl = document.createElement('audio');
+                audioEl.id = `audio-${targetSocketId}`;
+                audioEl.srcObject = new MediaStream([event.track]); // Doğrudan track'ten yeni stream
                 audioEl.autoplay = true;
+                audioEl.volume = 1.0;
                 audioEl.setAttribute('playsinline', 'true');
                 document.body.appendChild(audioEl);
-                audioEl.play().catch(e => console.error('[Audio] Play failed:', e));
+                // Kullanıcı etkileşimi olmadan ses çalma sorunu için multiple retry
+                const tryPlay = () => {
+                    audioEl.play().catch(e => {
+                        console.warn('[Audio] İlk play denemesi başarısız, 500ms sonra tekrar:', e);
+                        setTimeout(() => audioEl.play().catch(() => { }), 500);
+                    });
+                };
+                tryPlay();
             }
         };
 
-        // Local stream track'lerini ekle
+        // Local stream track'lerini ekle (varsa — dinleyicilerde olmayabilir)
         if (stream) {
             stream.getTracks().forEach(track => {
                 pc.addTrack(track, stream);
@@ -245,18 +255,19 @@ export function usePartyRoom(roomId: string) {
         }
     }, [socket, createPeer, flushIceCandidates]);
 
-    // Diğer kişiye offer gönder
+    // Diğer kişiye offer gönder — localStream yoksa bile dinleyici olarak bağlan
     const sendOffer = useCallback(async (targetSocketId: string) => {
-        if (!localStream.current) return;
-        const pc = createPeer(targetSocketId, localStream.current);
+        // NOT: localStream olmadan da offer gönderebiliyoruz (sadece almak için)
+        const pc = createPeer(targetSocketId, localStream.current || undefined);
         try {
             const offer = await pc.createOffer({
-                offerToReceiveAudio: true,
-                offerToReceiveVideo: true,
+                offerToReceiveAudio: true,   // Her zaman ses al
+                offerToReceiveVideo: true,   // Her zaman video al
                 iceRestart: false
             });
             await pc.setLocalDescription(offer);
             socket?.emit('webrtc_signal', { to: targetSocketId, signal: offer, type: 'offer' });
+            console.log('[WebRTC] 📤 Offer gönderildi →', targetSocketId.slice(-4), localStream.current ? '(mic aktif)' : '(dinleyici mod)');
         } catch (e) {
             console.error('[WebRTC] Offer create failed:', e);
         }
@@ -313,7 +324,7 @@ export function usePartyRoom(roomId: string) {
         }
     }, [socket]);
 
-    // Socket event listener'ları
+    // Socket event listener'ları — Odaya katılım
     useEffect(() => {
         if (socketConnected && authStatus === 'authenticated') {
             socket?.emit('join_room', roomId);
@@ -322,6 +333,9 @@ export function usePartyRoom(roomId: string) {
 
     useEffect(() => {
         if (!socket) return;
+
+        // Son snapshot referansı — gereksiz re-render'ları önle
+        let lastSeatsJson = '';
 
         const onSnapshot = (raw: any) => {
             const data = {
@@ -333,30 +347,69 @@ export function usePartyRoom(roomId: string) {
             setChat((data.messages || []).slice(-50));
             setIsLoading(false);
 
+            // ─── Odadaki kullanıcı listesini seats'ten oluştur ───
+            const users: any[] = [];
+            if (data.seats) {
+                data.seats.forEach((seat: any, idx: number) => {
+                    if (seat && seat.uid) {
+                        users.push({
+                            uid: seat.uid,
+                            socketId: seat.socketId || seat.uid,
+                            username: seat.username || 'Kullanıcı',
+                            avatar: seat.avatar || '',
+                            isOnline: true,
+                            isOwner: seat.uid === data.ownerUid,
+                            isAdmin: data.admins?.includes(seat.uid) || false,
+                            isSeated: true,
+                            seatIndex: idx,
+                            isSpeaking: seat.isSpeaking || 0
+                        });
+                    }
+                });
+            }
+            setRoomUsers(users);
+
+            // Koltuk değişikliğini tespit et (gereksiz peer temizliğini önle)
+            const newSeatsJson = JSON.stringify(data.seats?.map((s: any) => s?.uid || null));
+            const seatsChanged = newSeatsJson !== lastSeatsJson;
+            lastSeatsJson = newSeatsJson;
+
             // Peer Temizliği: Koltukta olmayanların bağlantılarını kapat
             const currentSeatUids = new Set(data.seats.filter((s: any) => s && s.uid).map((s: any) => s.uid));
-            peers.current.forEach((pc, socketId) => {
-                // socketId (uid) artık koltukta değilse kapat
-                if (!currentSeatUids.has(socketId)) {
-                    console.log('[WebRTC] Cleaning up stale peer:', socketId);
-                    pc.close();
-                    peers.current.delete(socketId);
-                    const stream = remoteStreamsRef.current.get(socketId);
-                    if (stream) {
-                        stream.getTracks().forEach(t => t.stop());
-                        remoteStreamsRef.current.delete(socketId);
-                        setRemoteStreamsState(new Map(remoteStreamsRef.current));
+            if (seatsChanged) {
+                peers.current.forEach((pc, socketId) => {
+                    // socketId (uid) artık koltukta değilse kapat
+                    if (!currentSeatUids.has(socketId)) {
+                        console.log('[WebRTC] 🧹 Koltuktan ayrılan peer temizlendi:', socketId.slice(-4));
+                        pc.close();
+                        peers.current.delete(socketId);
+                        const stream = remoteStreamsRef.current.get(socketId);
+                        if (stream) {
+                            stream.getTracks().forEach(t => t.stop());
+                            remoteStreamsRef.current.delete(socketId);
+                            setRemoteStreamsState(new Map(remoteStreamsRef.current));
+                        }
+                        document.getElementById(`audio-${socketId}`)?.remove();
                     }
-                    document.getElementById(`audio-${socketId}`)?.remove();
-                }
-            });
+                });
+            }
 
-            // Odaya girince koltukta olan herkesten offer iste (henüz bağlı değilsek)
+            // ─── KRİTİK: Odaya girince koltukta olan HERKESİN sesini al ───
+            // Koltuğa oturmuş veya oturmamış HERKES koltukta olanları DUYABİLİR
             if (data.seats) {
                 data.seats.forEach((seat: any) => {
-                    if (seat && (seat.uid || seat.socketId) && (seat.uid !== pb.authStore.model?.id)) {
-                        const targetId = seat.uid || seat.id;
-                        if (!peers.current.has(targetId)) {
+                    if (seat && seat.uid && seat.uid !== pb.authStore.model?.id) {
+                        const targetId = seat.uid;
+                        const existingPc = peers.current.get(targetId);
+                        // Peer yoksa veya kapalıysa → offer gönder / request_offer et
+                        if (!existingPc || existingPc.connectionState === 'closed' || existingPc.connectionState === 'failed') {
+                            if (existingPc) {
+                                existingPc.close();
+                                peers.current.delete(targetId);
+                            }
+                            console.log('[WebRTC] 📡 Koltukta oturandan ses al →', targetId.slice(-4));
+                            // Hem offer gönder (dinleyici olarak) hem de request_offer et
+                            sendOffer(targetId);
                             socket?.emit('request_offer', { to: targetId });
                         }
                     }
@@ -369,23 +422,38 @@ export function usePartyRoom(roomId: string) {
         const onSeatsSync = (seats: any) => setRoomState((prev: any) => prev ? { ...prev, seats } : null);
 
         const onUserJoined = (data: any) => {
-            // Yeni kişi odaya girdi → eğer micımız/kameramız açıksa ona teklif gönder
-            if ((isMicOn || isCameraOn) && localStream.current) {
+            // Yeni kişi odaya girdi → mic/kamera açıksa offer gönder
+            // NOT: localStream olsun olmasın, karşı taraf bizi duyabilmeli
+            if (localStream.current) {
+                console.log('[WebRTC] 👋 Yeni katılımcıya offer gönderiliyor →', data.socketId?.slice(-4));
                 sendOffer(data.socketId);
             }
         };
 
         const onPeerMicOn = (data: any) => {
-            // Karşı taraf mic açtı → Teklif iste (Dinleyiciler de duyabilsin diye localStream kontrolü kaldırıldı)
-            if (data.from || data.socketId) {
-                socket.emit('request_offer', { to: data.from || data.socketId });
+            // Karşı taraf mic açtı → Dinleyici de dahil herkes ondan offer ister
+            const fromId = data.from || data.socketId;
+            if (fromId && fromId !== pb.authStore.model?.id) {
+                console.log('[WebRTC] 🎤 Peer mic açtı, offer isteniyor ←', fromId.slice(-4));
+                // Mevcut peer varsa sıfırla ve yeniden bağlan
+                const existingPc = peers.current.get(fromId);
+                if (existingPc) {
+                    existingPc.close();
+                    peers.current.delete(fromId);
+                }
+                // Hem offer gönder hem de request_offer et
+                sendOffer(fromId);
+                socket.emit('request_offer', { to: fromId });
             }
         };
 
         const onRequestOffer = (data: any) => {
-            // Benden offer istendi → sadece stream varsa gönder
-            if (localStream.current) {
-                sendOffer(data.from);
+            // Benden offer istendi → localStream OLMAdAN bile peer oluştur
+            // Bu sayede karşı taraf benden ses alamasa bile ben ondan alabiliyorum
+            const fromId = data.from;
+            if (fromId) {
+                console.log('[WebRTC] 📨 Offer istendi →', fromId.slice(-4), localStream.current ? '(mic var)' : '(dinleyici)');
+                sendOffer(fromId);
             }
         };
 
@@ -401,6 +469,7 @@ export function usePartyRoom(roomId: string) {
 
         const onPeerDisconnected = (socketId: string) => {
             // Peer gittiğinde kaynakları temizle
+            console.log('[WebRTC] 🚪 Peer ayrıldı:', socketId.slice(-4));
             const pc = peers.current.get(socketId);
             if (pc) { pc.close(); peers.current.delete(socketId); }
             const stream = remoteStreamsRef.current.get(socketId);
@@ -438,7 +507,7 @@ export function usePartyRoom(roomId: string) {
             socket.off('announcement_updated', onAnnouncementUpdated);
             socket.off('user_left_room', onPeerDisconnected);
         };
-    }, [socket, handleSignal, isMicOn, isCameraOn, sendOffer]);
+    }, [socket, handleSignal, sendOffer]);
 
     // Mikrofon aç/kapat
     const toggleMic = useCallback(async () => {
@@ -544,6 +613,7 @@ export function usePartyRoom(roomId: string) {
         isCameraOn,
         isLoading,
         error,
+        roomUsers,   // Odadaki kullanıcı listesi — Firestore seats'ten türetildi
         isConnected: socketConnected && !!roomState,
         localStream: localStream.current,
         remoteStreams: remoteStreamsState,   // React state → re-render tetikler
