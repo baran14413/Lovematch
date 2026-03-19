@@ -277,17 +277,81 @@ class FirebaseSocketEmulator {
         }
 
         if (event === 'send_msg' && this.currentRoomId) {
+            const user = pb.authStore.model;
             updateDoc(doc(db, 'rooms', this.currentRoomId), {
                 messages: arrayUnion({
                     id: Math.random().toString(36).slice(2),
-                    uid: this.uid,
-                    username: pb.authStore.model?.username || 'Kullanıcı',
-                    text: cleanText(typeof data === 'string' ? data : (data?.text || '')),
+                    type: 'chat',
+                    user: {
+                        uid: this.uid,
+                        username: user?.username || 'Kullanıcı',
+                        avatar: user?.avatar ? pb.files.getUrl(user, user.avatar) : getRandomMemoji(),
+                        color: user?.color || '#8b5cf6',
+                        bubbleStyle: user?.bubbleStyle || 'classic'
+                    },
+                    content: cleanText(typeof data === 'string' ? data : (data?.text || '')),
+                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                     timestamp: Date.now()
                 }),
                 updated: serverTimestamp()
-            });
+            }).catch(() => { });
             return;
+        }
+
+        // 1v1 Match Logic
+        if (event === 'join_1v1_pool') {
+            fetch('/api/1v1/join', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }).catch(() => { });
+            return;
+        }
+
+        if (event === 'leave_1v1_pool') {
+            fetch('/api/1v1/leave', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uid: this.uid })
+            }).catch(() => { });
+            return;
+        }
+
+        if (event === 'leave_1v1_room' && data?.partnerUid) {
+            addDoc(collection(db, 'signaling'), {
+                fromUid: this.uid,
+                toUid: data.partnerUid,
+                signalType: 'partner_left',
+                timestamp: serverTimestamp()
+            }).catch(() => { });
+            return;
+        }
+
+        if (event === '1v1_decision' && data?.targetUid) {
+            addDoc(collection(db, 'signaling'), {
+                fromUid: this.uid,
+                toUid: data.targetUid,
+                signalType: '1v1_partner_decision',
+                decision: data.decision,
+                timestamp: serverTimestamp()
+            }).catch(() => { });
+            return;
+        }
+
+        // 1v1 & DM Message sending
+        if (event === 'send_message') {
+            // Firestore kullanarak doğrudan hedef kişiye veya odaya sinyal at (sunucu/istemci dinler)
+            const targetUid = data.toUid || data.room; // room aslında partner uid de olabilir, kod durumuna göre
+            if (targetUid) {
+                addDoc(collection(db, 'signaling'), {
+                    fromUid: this.uid,
+                    toUid: targetUid,
+                    signalType: 'receive_message',
+                    timestamp: serverTimestamp(),
+                    ...data
+                }).catch(() => { });
+            }
+            return; // 1v1 ve DM mesaj sistemi için eklendi
         }
 
         if (event === 'take_seat' && this.currentRoomId) {

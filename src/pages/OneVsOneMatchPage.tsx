@@ -229,13 +229,13 @@ export default function OneVsOneMatchPage({ onClose }: { onClose: () => void }) 
         setChat(prev => [...prev, tempMsg]);
         setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
 
-        socket.emit('send_message', tempMsg);
+        socket.emit('send_message', { ...tempMsg, toUid: matchedUser?.uid });
         setMsg('');
     };
 
     const cleanupAndClose = () => {
         cleanupVoice();
-        if (socket) socket.emit('leave_1v1_room', roomId);
+        if (socket) socket.emit('leave_1v1_room', { roomId, partnerUid: matchedUserRef.current?.uid });
         setPhase('lobby');
         setRoomId(null);
         roomIdRef.current = null;
@@ -276,13 +276,13 @@ export default function OneVsOneMatchPage({ onClose }: { onClose: () => void }) 
     }, [phase, showEndOptions]);
 
     const acceptDM = () => {
-        socket?.emit('1v1_decision', { targetRoom: roomId, decision: 'accept' });
+        socket?.emit('1v1_decision', { targetRoom: roomId, targetUid: matchedUser?.uid, decision: 'accept' });
         setPartnerDecision('waiting');
     };
 
     const declineDM = () => {
-        socket?.emit('send_message', { room: roomId, text: 'Kullanıcı eşleşmeyi sonlandırdı.', sys: true });
-        socket?.emit('1v1_decision', { targetRoom: roomId, decision: 'decline' });
+        socket?.emit('send_message', { toUid: matchedUser?.uid, text: 'Kullanıcı eşleşmeyi sonlandırdı.', sys: true });
+        socket?.emit('1v1_decision', { targetRoom: roomId, targetUid: matchedUser?.uid, decision: 'decline' });
         cleanupAndClose();
     };
 

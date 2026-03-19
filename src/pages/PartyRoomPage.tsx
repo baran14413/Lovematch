@@ -2013,11 +2013,8 @@ export function PartyRoomInner({ roomId, onLeave, onBack: _onBack }: { roomId: s
                     </div>
 
                     <button className="leave-btn" onClick={() => {
-                        if (isSeated) {
-                            actions.leaveSeat();
-                        } else {
-                            onLeave();
-                        }
+                        actions.leaveRoom();
+                        onLeave();
                     }}>
                         <i className={`fa-solid ${isSeated ? 'fa-user-minus' : 'fa-arrow-right-from-bracket'}`}></i>
                     </button>

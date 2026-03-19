@@ -344,7 +344,28 @@ export function usePartyRoom(roomId: string) {
                 lockedSeats: raw.lockedSeats || new Array(raw.maxSeatCount || 8).fill(false)
             };
             setRoomState(data);
-            setChat((data.messages || []).slice(-50));
+
+            // Mesajları hem eski formattan (text/uid) hem yeni formattan normalize et
+            const normalizedChat = (data.messages || []).map((m: any) => {
+                if (!m.user && m.uid) { // Eğer eski tip mesajsa yeni formata çevir
+                    return {
+                        ...m,
+                        content: m.text || m.content || '',
+                        type: 'chat',
+                        user: {
+                            uid: m.uid,
+                            username: m.username || 'Anonim',
+                            avatar: '/assets/jack.png',
+                            color: '#8b5cf6',
+                            bubbleStyle: 'classic'
+                        },
+                        time: m.time || (m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '')
+                    };
+                }
+                return m;
+            });
+            setChat(normalizedChat.slice(-50));
+
             setIsLoading(false);
 
             // ─── Odadaki kullanıcı listesini seats'ten oluştur ───
@@ -620,6 +641,7 @@ export function usePartyRoom(roomId: string) {
         actions: {
             toggleMic,
             toggleCamera,
+            leaveRoom,
             takeSeat: (index: number) => socket?.emit('take_seat', index),
             leaveSeat: () => socket?.emit('leave_seat'),
             toggleFollowRoom: async () => {
@@ -669,8 +691,7 @@ export function usePartyRoom(roomId: string) {
                 socket?.emit('admin_action', { action, targetUid, targetSocketId, seatIndex, ...extra }),
             updateAnnouncement: (text: string) => socket?.emit('update_announcement', text),
             updateSlowMode: (enabled: boolean) => socket?.emit('update_slow_mode', enabled),
-            updateChatDisabled: (disabled: boolean) => socket?.emit('update_chat_disabled', disabled),
-            leaveRoom
+            updateChatDisabled: (disabled: boolean) => socket?.emit('update_chat_disabled', disabled)
         }
     };
 }
